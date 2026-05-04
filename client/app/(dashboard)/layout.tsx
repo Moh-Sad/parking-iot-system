@@ -27,7 +27,7 @@ const navItems = [
   { href: "/dashboard/management", label: "Management", icon: Briefcase },
   { href: "/dashboard/finance", label: "Finance", icon: CreditCard },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
-  { href: "/dashboard/logs", label: "Logs", icon: FileText },
+  { href: "/dashboard/admin/logs", label: "Logs", icon: FileText },
 ] as const;
 
 function isNavActive(pathname: string, href: string) {
