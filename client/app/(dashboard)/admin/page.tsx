@@ -1,4 +1,4 @@
-import { ShieldAlert, Zap, Banknote, UserPlus, MapPin, Gauge, Activity, RotateCw, MoreHorizontal, AlertCircle } from "lucide-react";
+import { ShieldAlert, Zap, Banknote, UserPlus, Activity, RotateCw, MoreHorizontal, AlertCircle } from "lucide-react";
 
 export default function SupervisorDashboardPage() {
   return (
@@ -61,7 +61,7 @@ export default function SupervisorDashboardPage() {
           </div>
 
           <div className="w-full overflow-x-auto rounded-lg">
-            <table className="w-full text-left text-sm whitespace-nowrap min-w-[700px]">
+            <table className="w-full text-left text-sm whitespace-nowrap min-w-175">
               <thead>
                 <tr className="border-b border-border/50 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
                   <th className="pb-4 font-bold">Transaction ID</th>
@@ -215,7 +215,7 @@ export default function SupervisorDashboardPage() {
                        <circle 
                          key={i}
                          cx="50" cy="50" r="42" fill="none" 
-                         className={i % 2 === 0 ? "stroke-primary" : "stroke-secondary"} 
+                         className={i % 2 === 0 ? "stroke-primary" : "stroke-muted-foreground/50"} 
                          strokeWidth="8" 
                          strokeDasharray="28 235.89"
                          transform={`rotate(${i * 45} 50 50)`}
@@ -241,7 +241,7 @@ export default function SupervisorDashboardPage() {
                </div>
              </div>
 
-             <div className="bg-card border border-border rounded-2xl p-6 flex flex-col h-[calc(100%-432px)] min-h-[350px]">
+             <div className="bg-card border border-border rounded-2xl p-6 flex flex-col h-[calc(100%-432px)] min-h-87.5">
                <div className="flex items-center justify-between mb-6">
                   <h3 className="text-sm font-bold tracking-widest text-muted-foreground uppercase">Critical Alerts</h3>
                   <button className="text-muted-foreground hover:text-foreground">
