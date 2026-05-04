@@ -11,7 +11,11 @@ function applyTheme(dark: boolean) {
   document.documentElement.classList.toggle("dark", dark);
 }
 
-export function ThemeToggle() {
+type ThemeToggleProps = {
+  className?: string;
+};
+
+export function ThemeToggle({ className }: ThemeToggleProps) {
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -40,6 +44,7 @@ export function ThemeToggle() {
       disabled={!mounted}
       className={cn(
         "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:border-primary/25 hover:bg-primary/5 hover:text-foreground disabled:opacity-50",
+        className,
       )}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
     >

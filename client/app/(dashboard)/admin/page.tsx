@@ -2,7 +2,7 @@ import { ShieldAlert, Zap, Banknote, UserPlus, Activity, RotateCw, MoreHorizonta
 
 export default function SupervisorDashboardPage() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mt-2 flex flex-col gap-6 sm:mt-4">
       {/* Top Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* STAT 1 */}
