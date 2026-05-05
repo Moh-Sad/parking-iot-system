@@ -1,1 +1,3 @@
-export { default } from "../admin/page";
+import ManagementPage from "./management/page";
+
+export default ManagementPage;
