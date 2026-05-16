@@ -1,0 +1,34 @@
+import { Router } from 'express';
+import authRoutes from './auth.routes.js';
+import meRoutes from './me.routes.js';
+import usersRoutes from './users.routes.js';
+import stationsRoutes from './stations.routes.js';
+import slotsRoutes from './slots.routes.js';
+import assignmentsRoutes from './assignments.routes.js';
+import vehiclesRoutes from './vehicles.routes.js';
+import invoicesRoutes from './invoices.routes.js';
+import transactionsRoutes from './transactions.routes.js';
+import logsRoutes from './logs.routes.js';
+import settingsRoutes from './settings.routes.js';
+import notificationsRoutes from './notifications.routes.js';
+import dashboardRoutes from './dashboard.routes.js';
+import searchRoutes from './search.routes.js';
+import healthRoutes from './health.routes.js';
+
+export const apiRouter = Router();
+
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/me', meRoutes);
+apiRouter.use('/users', usersRoutes);
+apiRouter.use('/stations', stationsRoutes);
+apiRouter.use('/slots', slotsRoutes);
+apiRouter.use('/assignments', assignmentsRoutes);
+apiRouter.use('/vehicles', vehiclesRoutes);
+apiRouter.use('/invoices', invoicesRoutes);
+apiRouter.use('/transactions', transactionsRoutes);
+apiRouter.use('/logs', logsRoutes);
+apiRouter.use('/settings', settingsRoutes);
+apiRouter.use('/notifications', notificationsRoutes);
+apiRouter.use('/dashboard', dashboardRoutes);
+apiRouter.use('/search', searchRoutes);
+apiRouter.use('/health', healthRoutes);
