@@ -29,7 +29,7 @@ function roleBase(role: DashboardRole): "/admin" | "/supervisor" {
 const navItems = [
   { key: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
   { key: "management" as const, label: "Management", icon: Briefcase },
-  { key: "finance" as const, label: "Finance", icon: CreditCard },
+  { key: "finances" as const, label: "Finances", icon: CreditCard },
   { key: "settings" as const, label: "Settings", icon: Settings },
   { key: "logs" as const, label: "Logs", icon: FileText },
 ];
