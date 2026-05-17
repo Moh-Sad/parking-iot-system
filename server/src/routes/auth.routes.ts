@@ -85,7 +85,7 @@ router.post(
     const { firstName, lastName, password } = req.body as {
       firstName: string;
       lastName: string;
-      password: string;
+      password?: string;
     };
     await auth.completeAccess(req.user.id, firstName, lastName, password);
     return ok(res, { ok: true });

@@ -8,7 +8,8 @@ export const loginBody = z.object({
 export const completeAccessBody = z.object({
   firstName: z.string().min(1).max(80),
   lastName: z.string().min(1).max(80),
-  password: z.string().min(8).max(128),
+  // Optional: only required if the user is completing profile without going through /auth/reset first.
+  password: z.string().min(8).max(128).optional(),
 });
 
 export const refreshBody = z.object({

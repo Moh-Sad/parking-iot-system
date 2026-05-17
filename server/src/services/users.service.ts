@@ -133,7 +133,9 @@ export async function createUser(input: {
   const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
   await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt } });
 
-  const setupUrl = `${env.CORS_ORIGIN}/auth/access?token=${tokenPlain}`;
+  // Invite email points to /auth/reset for initial password. Once they log in,
+  // the DashboardGuard routes them to /auth/access to complete firstName/lastName.
+  const setupUrl = `${env.CORS_ORIGIN}/auth/reset?token=${tokenPlain}`;
   const tpl = supervisorInviteEmail(setupUrl);
   await sendMail({ to: user.email, ...tpl });
 

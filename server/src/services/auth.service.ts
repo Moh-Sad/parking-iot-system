@@ -142,16 +142,27 @@ export async function logout(refreshToken?: string): Promise<void> {
     .catch(() => undefined);
 }
 
-export async function completeAccess(userId: string, firstName: string, lastName: string, password: string): Promise<void> {
+export async function completeAccess(
+  userId: string,
+  firstName: string,
+  lastName: string,
+  password?: string,
+): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw ApiError.notFound('User not found');
   if (!user.mustCompleteProfile) throw ApiError.badRequest('Profile already completed');
+  if (!user.passwordHash && !password) {
+    throw ApiError.badRequest('Password required when no password is set');
+  }
 
-  const passwordHash = await hashPassword(password);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { firstName, lastName, passwordHash, mustCompleteProfile: false },
-  });
+  const data: { firstName: string; lastName: string; mustCompleteProfile: false; passwordHash?: string } = {
+    firstName,
+    lastName,
+    mustCompleteProfile: false,
+  };
+  if (password) data.passwordHash = await hashPassword(password);
+
+  await prisma.user.update({ where: { id: user.id }, data });
   await writeAudit({
     component: AUDIT_COMPONENTS.AUTH,
     action: 'profile.completed',

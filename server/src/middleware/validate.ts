@@ -9,12 +9,15 @@ export function validate(schema: ZodTypeAny, source: Source = 'body'): RequestHa
     try {
       const parsed = schema.parse(req[source]);
 
-      if (source === 'query') {
-        // Express 5: req.query is a getter, cannot reassign. Mutate in place instead.
-        const target = req.query as Record<string, unknown>;
-        for (const key of Object.keys(target)) delete target[key];
-        Object.assign(target, parsed as Record<string, unknown>);
-      } else {
+      // Stash on a dedicated bag — Express 5's req.query is a getter and can't
+      // be reassigned, and mutating its values in place doesn't persist either.
+      const bag = (req as Request & { validated?: Record<Source, unknown> }).validated ?? {} as Record<Source, unknown>;
+      bag[source] = parsed;
+      (req as Request & { validated?: Record<Source, unknown> }).validated = bag;
+
+      if (source !== 'query') {
+        // For body / params (regular properties), still keep them in sync so
+        // route handlers that read req.body directly see the parsed value.
         (req as unknown as Record<Source, unknown>)[source] = parsed;
       }
       next();
@@ -25,4 +28,9 @@ export function validate(schema: ZodTypeAny, source: Source = 'body'): RequestHa
       next(err);
     }
   };
+}
+
+export function validated<T>(req: Request, source: Source): T {
+  const bag = (req as Request & { validated?: Record<Source, unknown> }).validated;
+  return (bag?.[source] ?? req[source]) as T;
 }

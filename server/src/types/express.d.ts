@@ -11,6 +11,11 @@ declare global {
     }
     interface Request {
       user?: UserContext;
+      validated?: {
+        body?: unknown;
+        query?: unknown;
+        params?: unknown;
+      };
     }
   }
 }

@@ -1,63 +1,188 @@
-import { ShieldAlert, Zap, Banknote, UserPlus, Activity, RotateCw, MoreHorizontal, AlertCircle } from "lucide-react";
+"use client";
 
-export default function SupervisorDashboardPage() {
+import { useEffect, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  Banknote,
+  Loader2,
+  MoreHorizontal,
+  RefreshCw,
+  RotateCw,
+  ShieldAlert,
+  UserPlus,
+  Zap,
+} from "lucide-react";
+import { api, ApiCallError } from "@/lib/api";
+import type {
+  AlertRow,
+  DashboardStats,
+  TransactionRow,
+} from "@/lib/api-types";
+import { formatMoney, formatRelative } from "@/lib/format";
+
+interface HealthData {
+  healthScore: number;
+  latencyMs: number;
+  uptimePct: number;
+  status: string;
+}
+
+const PAYMENT_LABEL: Record<string, string> = {
+  CORPORATE_FLEET_CARD: "Corporate Fleet Card",
+  DIRECT_PAY: "Direct Pay",
+  MOBILE_APP_WALLET: "Mobile App Wallet",
+  RFID_PASS: "RFID Pass",
+  APPLE_PAY: "Apple Pay",
+};
+
+const STATUS_LABEL: Record<TransactionRow["status"], string> = {
+  COMPLETED: "Completed",
+  PENDING: "Pending",
+  FAILED: "Failed",
+};
+
+const STATUS_TONE: Record<TransactionRow["status"], { dot: string; text: string }> = {
+  COMPLETED: { dot: "bg-foreground", text: "text-foreground" },
+  PENDING: { dot: "bg-muted-foreground", text: "text-muted-foreground" },
+  FAILED: { dot: "bg-destructive", text: "text-destructive" },
+};
+
+function abbreviateMoney(cents: number, currency: string): string {
+  const value = cents / 100;
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return formatMoney(Math.round(value / 1000) * 100_000, currency).replace(/[\d.,]+/, (m) => `${(Number(m.replace(/,/g, "")) / 1000).toFixed(1)}k`);
+  if (abs >= 1_000) {
+    const k = (value / 1000).toFixed(1).replace(/\.0$/, "");
+    return `${currency === "USD" ? "$" : `${currency} `}${k}k`;
+  }
+  return formatMoney(cents, currency);
+}
+
+function abbreviateCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return n.toString();
+}
+
+export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [transactions, setTransactions] = useState<TransactionRow[]>([]);
+  const [health, setHealth] = useState<HealthData | null>(null);
+  const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async (showSpinner: boolean) => {
+    if (showSpinner) setIsLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+    try {
+      const [s, t, h, a] = await Promise.all([
+        api.get<DashboardStats>("/dashboard/stats"),
+        api.get<TransactionRow[]>("/dashboard/transactions?limit=10"),
+        api.get<HealthData>("/dashboard/health"),
+        api.get<AlertRow[]>("/dashboard/alerts?limit=5"),
+      ]);
+      setStats(s);
+      setTransactions(t);
+      setHealth(h);
+      setAlerts(a);
+    } catch (err) {
+      if (err instanceof ApiCallError) setError(err.message || "Failed to load dashboard");
+      else setError("Network error. Is the API server running?");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    void load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-96 items-center justify-center text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="mt-2 flex flex-col gap-6 sm:mt-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Real-time view of the parking network.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void load(false)}
+          disabled={isRefreshing}
+          aria-label="Refresh dashboard"
+          className="rounded-md border border-border/60 bg-background p-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+        </button>
+      </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* Top Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* STAT 1 */}
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <Activity size={100} />
-          </div>
-          <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] mb-4 uppercase">Total Stations</h2>
-          <div className="text-3xl font-bold text-foreground">240</div>
-          <p className="text-sm text-muted-foreground mt-2 font-medium">+12% vs last month</p>
-        </div>
-
-        {/* STAT 2 */}
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <Zap size={100} />
-          </div>
-          <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] mb-4 uppercase">Active Sessions</h2>
-          <div className="text-3xl font-bold text-foreground">1,842</div>
-          <p className="text-sm text-muted-foreground mt-2 font-medium">Peak load at 94%</p>
-        </div>
-
-        {/* STAT 3 */}
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <Banknote size={100} />
-          </div>
-          <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] mb-4 uppercase">Revenue</h2>
-          <div className="text-3xl font-bold text-foreground">$42.5k</div>
-          <p className="text-sm text-muted-foreground mt-2 font-medium">Daily AVG $1.4k</p>
-        </div>
-
-        {/* STAT 4 */}
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <UserPlus size={100} />
-          </div>
-          <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] mb-4 uppercase">Active Users</h2>
-          <div className="text-3xl font-bold text-foreground">12.4k</div>
-          <p className="text-sm text-muted-foreground mt-2 font-medium">Retainment 82%</p>
-        </div>
+        <StatCard
+          icon={<Activity size={100} />}
+          label="Total Stations"
+          value={stats ? stats.totalStations.toString() : "—"}
+          hint="Network-wide"
+        />
+        <StatCard
+          icon={<Zap size={100} />}
+          label="Active Sessions"
+          value={stats ? stats.activeSessions.toString() : "—"}
+          hint={stats && stats.activeSessions > 0 ? "Live now" : "No active sessions"}
+        />
+        <StatCard
+          icon={<Banknote size={100} />}
+          label="Revenue"
+          value={
+            stats
+              ? abbreviateMoney(stats.revenue.totalCents, stats.revenue.currency)
+              : "—"
+          }
+          hint={
+            stats
+              ? `Daily AVG ${abbreviateMoney(stats.revenue.dailyAvgCents, stats.revenue.currency)}`
+              : ""
+          }
+        />
+        <StatCard
+          icon={<UserPlus size={100} />}
+          label="Active Users"
+          value={stats ? abbreviateCount(stats.activeUsers) : "—"}
+          hint="Logged in last 30 days"
+        />
       </div>
 
       {/* Main Split Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* TRANSACTIONS SECTION (Left 2/3) */}
+        {/* Transactions table */}
         <div className="lg:col-span-2 bg-card border border-border rounded-2xl flex flex-col p-6 min-w-0">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
               <h2 className="text-xl font-bold text-foreground mb-1">Recent Transactions</h2>
               <p className="text-sm text-muted-foreground">Real-time ledger of network activity.</p>
             </div>
-            <button className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary text-foreground transition-colors shrink-0">
-              View All
-            </button>
           </div>
 
           <div className="w-full overflow-x-auto rounded-lg">
@@ -72,222 +197,175 @@ export default function SupervisorDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94021-884</td>
-                  <td className="py-4 text-foreground">Berlin North Cluster B4</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                      <span className="text-foreground font-medium">Completed</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">Corporate Fleet Card</td>
-                  <td className="py-4 text-right font-bold text-foreground">$142.50</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94022-102</td>
-                  <td className="py-4 text-foreground">Munich Tech Hub S1</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground"></div>
-                      <span className="text-muted-foreground font-medium">Pending</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">Direct Pay</td>
-                  <td className="py-4 text-right font-bold text-foreground">$88.20</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94023-559</td>
-                  <td className="py-4 text-foreground">Hamburg Port Terminal</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                      <span className="text-foreground font-medium">Completed</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">Mobile App Wallet</td>
-                  <td className="py-4 text-right font-bold text-foreground">$31.00</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94024-912</td>
-                  <td className="py-4 text-foreground">Paris Center High-Volt</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                      <span className="text-foreground font-medium">Completed</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">RFID Pass</td>
-                  <td className="py-4 text-right font-bold text-foreground">$215.75</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94025-442</td>
-                  <td className="py-4 text-foreground">London East EV Station</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-destructive"></div>
-                      <span className="text-destructive font-medium">Failed</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">Apple Pay</td>
-                  <td className="py-4 text-right font-bold text-foreground">$15.00</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94026-118</td>
-                  <td className="py-4 text-foreground">Tokyo Central Hub 7</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                      <span className="text-foreground font-medium">Completed</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">Corporate Fleet Card</td>
-                  <td className="py-4 text-right font-bold text-foreground">$64.20</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94027-303</td>
-                  <td className="py-4 text-foreground">Amsterdam West G1</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground"></div>
-                      <span className="text-muted-foreground font-medium">Pending</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">Direct Pay</td>
-                  <td className="py-4 text-right font-bold text-foreground">$112.50</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94028-991</td>
-                  <td className="py-4 text-foreground">Madrid Downtown Park</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                      <span className="text-foreground font-medium">Completed</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">Mobile App Wallet</td>
-                  <td className="py-4 text-right font-bold text-foreground">$45.00</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94029-002</td>
-                  <td className="py-4 text-foreground">Rome North Side B2</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                      <span className="text-foreground font-medium">Completed</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">RFID Pass</td>
-                  <td className="py-4 text-right font-bold text-foreground">$180.00</td>
-                </tr>
-                <tr className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">TXN-94030-776</td>
-                  <td className="py-4 text-foreground">Vienna Inner City</td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                      <span className="text-foreground font-medium">Completed</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-muted-foreground">Direct Pay</td>
-                  <td className="py-4 text-right font-bold text-foreground">$25.50</td>
-                </tr>
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                      No recent transactions.
+                    </td>
+                  </tr>
+                ) : (
+                  transactions.map((t) => {
+                    const tone = STATUS_TONE[t.status];
+                    return (
+                      <tr key={t.id} className="group hover:bg-muted/10 transition-colors">
+                        <td className="py-4 font-medium text-muted-foreground">{t.code}</td>
+                        <td className="py-4 text-foreground">{t.station}</td>
+                        <td className="py-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${tone.dot}`}></div>
+                            <span className={`${tone.text} font-medium`}>{STATUS_LABEL[t.status]}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 text-muted-foreground">
+                          {PAYMENT_LABEL[t.method] ?? t.method}
+                        </td>
+                        <td className="py-4 text-right font-bold text-foreground">
+                          {formatMoney(t.amount, t.currency)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* RIGHT SIDEBAR PANEL */}
-        <div className="flex flex-col gap-8 h-full">
-          <div className="flex-1 flex flex-col gap-6">
-             <div className="bg-card border border-border rounded-2xl p-6">
-               <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-sm font-bold tracking-widest text-muted-foreground uppercase">System Health</h3>
-                  <button className="text-muted-foreground hover:text-foreground">
-                    <MoreHorizontal size={20} />
-                  </button>
-               </div>
-               
-               <div className="relative flex justify-center py-6">
-                 <div className="relative w-48 h-48">
-                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                     {[...Array(8)].map((_, i) => (
-                       <circle 
-                         key={i}
-                         cx="50" cy="50" r="42" fill="none" 
-                         className={i % 2 === 0 ? "stroke-primary" : "stroke-muted-foreground/50"} 
-                         strokeWidth="8" 
-                         strokeDasharray="28 235.89"
-                         transform={`rotate(${i * 45} 50 50)`}
-                       />
-                     ))}
-                   </svg>
-                   <div className="absolute inset-0 flex flex-col items-center justify-center mt-1">
-                     <div className="text-4xl font-black text-foreground tracking-tighter">94.8%</div>
-                     <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-1">Optimal</div>
-                   </div>
-                 </div>
-               </div>
+        {/* Right sidebar */}
+        <div className="flex flex-col gap-6">
+          <SystemHealthCard health={health} />
+          <CriticalAlertsCard alerts={alerts} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
-               <div className="grid grid-cols-2 gap-4 mt-2 text-left">
-                  <div className="border border-border/50 rounded-xl p-4 bg-muted/10">
-                    <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1">Latency</div>
-                    <div className="text-2xl font-bold text-foreground">24ms</div>
-                  </div>
-                  <div className="border border-border/50 rounded-xl p-4 bg-muted/10">
-                    <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1">Uptime</div>
-                    <div className="text-2xl font-bold text-foreground">99.9%</div>
-                  </div>
-               </div>
-             </div>
+function StatCard({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
+      <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
+        {icon}
+      </div>
+      <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] mb-4 uppercase">
+        {label}
+      </h2>
+      <div className="text-3xl font-bold text-foreground">{value}</div>
+      {hint && <p className="text-sm text-muted-foreground mt-2 font-medium">{hint}</p>}
+    </div>
+  );
+}
 
-             <div className="bg-card border border-border rounded-2xl p-6 flex flex-col h-[calc(100%-432px)] min-h-87.5">
-               <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-sm font-bold tracking-widest text-muted-foreground uppercase">Critical Alerts</h3>
-                  <button className="text-muted-foreground hover:text-foreground">
-                    <ShieldAlert size={16} />
-                  </button>
-               </div>
+function SystemHealthCard({ health }: { health: HealthData | null }) {
+  const score = health?.healthScore ?? 0;
+  const label = score >= 95 ? "Optimal" : score >= 85 ? "Stable" : score >= 70 ? "Degraded" : "Critical";
 
-               <div className="space-y-4 flex-1">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-foreground text-background flex items-center justify-center shrink-0">
-                      <AlertCircle size={20} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-foreground">Tiergarten District</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">2m ago</div>
-                    </div>
-                  </div>
+  return (
+    <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-sm font-bold tracking-widest text-muted-foreground uppercase">System Health</h3>
+        <button className="text-muted-foreground hover:text-foreground" aria-label="More">
+          <MoreHorizontal size={20} />
+        </button>
+      </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-foreground text-background flex items-center justify-center shrink-0">
-                      <Zap size={20} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-foreground">Mitte Hub Node B</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">14m ago</div>
-                    </div>
-                  </div>
+      <div className="relative flex justify-center py-6">
+        <div className="relative w-48 h-48">
+          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+            {[...Array(8)].map((_, i) => (
+              <circle
+                key={i}
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                className={i % 2 === 0 ? "stroke-primary" : "stroke-muted-foreground/50"}
+                strokeWidth="8"
+                strokeDasharray="28 235.89"
+                transform={`rotate(${i * 45} 50 50)`}
+              />
+            ))}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center mt-1">
+            <div className="text-4xl font-black text-foreground tracking-tighter">{score.toFixed(1)}%</div>
+            <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-1">
+              {label}
+            </div>
+          </div>
+        </div>
+      </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-foreground text-background flex items-center justify-center shrink-0">
-                      <RotateCw size={20} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-foreground">32 Devices Pending</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">45m ago</div>
-                    </div>
-                  </div>
-               </div>
-               
-               <button className="w-full mt-6 pt-6 text-xs font-bold tracking-widest text-muted-foreground hover:text-foreground uppercase border-t border-border transition-colors">
-                  View Incident Log
-               </button>
-             </div>
+      <div className="grid grid-cols-2 gap-4 mt-2 text-left">
+        <div className="border border-border/50 rounded-xl p-4 bg-muted/10">
+          <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1">Latency</div>
+          <div className="text-2xl font-bold text-foreground">{health ? `${health.latencyMs}ms` : "—"}</div>
+        </div>
+        <div className="border border-border/50 rounded-xl p-4 bg-muted/10">
+          <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1">Uptime</div>
+          <div className="text-2xl font-bold text-foreground">
+            {health ? `${health.uptimePct.toFixed(2)}%` : "—"}
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function CriticalAlertsCard({ alerts }: { alerts: AlertRow[] }) {
+  return (
+    <div className="bg-card border border-border rounded-2xl p-6 flex flex-col min-h-87.5">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-sm font-bold tracking-widest text-muted-foreground uppercase">Critical Alerts</h3>
+        <button className="text-muted-foreground hover:text-foreground" aria-label="View all">
+          <ShieldAlert size={16} />
+        </button>
+      </div>
+
+      {alerts.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No critical alerts.</p>
+      ) : (
+        <div className="space-y-4 flex-1">
+          {alerts.map((a) => {
+            const icon = alertIcon(a.component);
+            return (
+              <div key={a.id} className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-foreground text-background flex items-center justify-center shrink-0">
+                  {icon}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-foreground truncate">{a.title}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {a.component} · {formatRelative(a.timestamp)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function alertIcon(component: string): React.ReactNode {
+  switch (component) {
+    case "Auth":
+      return <AlertCircle size={20} />;
+    case "Slots":
+      return <Zap size={20} />;
+    case "Settings":
+      return <RotateCw size={20} />;
+    default:
+      return <ShieldAlert size={20} />;
+  }
 }
