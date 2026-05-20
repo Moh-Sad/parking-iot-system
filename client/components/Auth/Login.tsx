@@ -4,11 +4,22 @@ import { Button } from "@/components/ui/button";
 
 export default function Login() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-background text-foreground selection:bg-primary/30">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(var(--primary),0.08),transparent_30%),radial-gradient(circle_at_82%_82%,rgba(var(--secondary-foreground),0.05),transparent_30%)]" />
+    <main className="dark relative min-h-screen overflow-hidden bg-background text-foreground selection:bg-primary/30">
+      <div className="absolute inset-0 z-0">
+        <video
+          src="https://www.pexels.com/download/video/7700793/"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="h-full w-full object-cover"
+          style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+        />
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+      </div>
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-2xl items-center px-4 py-10 sm:px-6 lg:px-8">
-        <section className="group relative w-full overflow-hidden rounded-2xl border border-border/40 bg-secondary/20 p-6 shadow-2xl backdrop-blur-xl sm:p-8 lg:p-10">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl items-center px-4 py-10 sm:px-6 lg:px-8">
+        <section className="group relative w-full overflow-hidden rounded-3xl border border-white/10 bg-black/40 p-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl sm:p-8 lg:p-10">
           
           <div className="relative flex flex-col gap-8">
             <div className="space-y-3">
