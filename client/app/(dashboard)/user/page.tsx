@@ -1,17 +1,12 @@
 "use client";
 
 import {
-  Zap,
   MapPin,
-  Clock,
-  CreditCard,
   ArrowUpRight,
-  StopCircle,
   RefreshCw,
   ChevronRight,
 } from "lucide-react";
 
-// ── Circular progress ring ───────────────────────────────────────────────────
 function ChargeRing({ percent }: { percent: number }) {
   const r = 54;
   const circ = 2 * Math.PI * r;
@@ -102,11 +97,9 @@ const chargingHistory = [
   },
 ];
 
-// ── Page ────────────────────────────────────────────────────────────────────
 export default function UserDashboardPage() {
   return (
     <div className="mt-2 flex flex-col gap-6 sm:mt-4">
-
       {/* ── Header Row ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -115,20 +108,10 @@ export default function UserDashboardPage() {
             System operational · 4 nodes active
           </p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors">
-            Top Up Wallet
-          </button>
-          <button className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-semibold hover:opacity-90 transition-opacity flex items-center gap-2">
-            <Zap size={14} />
-            Start Charging
-          </button>
-        </div>
       </div>
 
       {/* ── Main Grid: Session + Wallet ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
         {/* Active Session Card (2/3) */}
         <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 flex flex-col gap-6">
           {/* Session header */}
@@ -137,7 +120,9 @@ export default function UserDashboardPage() {
               <p className="text-xs font-semibold text-muted-foreground tracking-[0.18em] uppercase mb-1">
                 Active Session
               </p>
-              <h2 className="text-2xl font-bold text-foreground">Station V-402</h2>
+              <h2 className="text-2xl font-bold text-foreground">
+                Station V-402
+              </h2>
               <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
                 <MapPin size={12} className="shrink-0" />
                 Supercharger · Berlin Central
@@ -164,7 +149,9 @@ export default function UserDashboardPage() {
                 <p className="text-[10px] font-semibold text-muted-foreground tracking-[0.15em] uppercase mb-1">
                   Time Elapsed
                 </p>
-                <p className="text-lg font-bold text-foreground tabular-nums">00:42:15</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">
+                  00:42:15
+                </p>
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground tracking-[0.15em] uppercase mb-1">
@@ -178,12 +165,6 @@ export default function UserDashboardPage() {
                 </p>
                 <p className="text-lg font-bold text-foreground">≈ 12 mins</p>
               </div>
-              <div className="flex items-end">
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
-                  <StopCircle size={13} />
-                  Stop Session
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -192,7 +173,7 @@ export default function UserDashboardPage() {
         <div className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-5">
           <div>
             <p className="text-xs font-semibold text-muted-foreground tracking-[0.18em] uppercase mb-1">
-              Wallet Balance
+              Wallet Spent
             </p>
             <p className="text-4xl font-bold text-foreground">$452.80</p>
             <p className="text-xs text-muted-foreground mt-1.5">
@@ -202,7 +183,7 @@ export default function UserDashboardPage() {
 
           <div className="flex-1 border-t border-border/50 pt-4 flex flex-col gap-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Last top up</span>
+              <span className="text-muted-foreground">Last Spend</span>
               <span className="font-semibold text-foreground flex items-center gap-1">
                 Oct 24 · +$100.00
               </span>
@@ -215,7 +196,7 @@ export default function UserDashboardPage() {
 
           <button className="mt-auto flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors">
             <RefreshCw size={13} />
-            Top Up Now
+            Refresh
           </button>
         </div>
       </div>
@@ -223,7 +204,9 @@ export default function UserDashboardPage() {
       {/* ── Charging History ── */}
       <div className="bg-card border border-border rounded-2xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-base font-bold text-foreground">Recent Charging History</h2>
+          <h2 className="text-base font-bold text-foreground">
+            Recent Charging History
+          </h2>
           <button className="text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
             View All Logs
             <ChevronRight size={13} />
@@ -231,7 +214,7 @@ export default function UserDashboardPage() {
         </div>
 
         <div className="w-full overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap min-w-[560px]">
+          <table className="w-full text-left text-sm whitespace-nowrap min-w-140">
             <thead>
               <tr className="border-b border-border/50 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
                 <th className="pb-3 font-bold">Location</th>
@@ -243,20 +226,30 @@ export default function UserDashboardPage() {
             </thead>
             <tbody className="divide-y divide-border/40">
               {chargingHistory.map((row) => (
-                <tr key={row.location} className="group hover:bg-muted/10 transition-colors">
+                <tr
+                  key={row.location}
+                  className="group hover:bg-muted/10 transition-colors"
+                >
                   <td className="py-4">
                     <p className="font-semibold text-foreground flex items-center gap-1.5">
-                      <MapPin size={12} className="text-muted-foreground shrink-0" />
+                      <MapPin
+                        size={12}
+                        className="text-muted-foreground shrink-0"
+                      />
                       {row.location}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5 pl-[20px]">
+                    <p className="text-xs text-muted-foreground mt-0.5 pl-5">
                       {row.sublocation}
                     </p>
                   </td>
                   <td className="py-4 text-muted-foreground">{row.date}</td>
-                  <td className="py-4 text-foreground font-medium">{row.energy}</td>
+                  <td className="py-4 text-foreground font-medium">
+                    {row.energy}
+                  </td>
                   <td className="py-4 text-muted-foreground">{row.duration}</td>
-                  <td className="py-4 text-right font-bold text-foreground">{row.cost}</td>
+                  <td className="py-4 text-right font-bold text-foreground">
+                    {row.cost}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -266,12 +259,11 @@ export default function UserDashboardPage() {
 
       {/* ── Bottom Row: News + Map ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
         {/* News Card */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden group">
           {/* Image placeholder with gradient overlay */}
           <div className="relative h-40 bg-muted/40 overflow-hidden flex items-end">
-            <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-card/30 to-transparent z-10" />
+            <div className="absolute inset-0 bg-linear-to-t from-card/90 via-card/30 to-transparent z-10" />
             <div className="absolute top-3 left-3 z-20 bg-foreground/10 backdrop-blur-sm border border-border/40 rounded-md px-2 py-0.5">
               <span className="text-[10px] font-bold text-foreground tracking-widest uppercase">
                 News
@@ -294,8 +286,8 @@ export default function UserDashboardPage() {
           </div>
           <div className="p-4 pt-3">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Six new 350kW liquid-cooled stalls now online at Munich Central Hub. Optimized for
-              next-gen 800V architectures.
+              Six new 350kW liquid-cooled stalls now online at Munich Central
+              Hub. Optimized for next-gen 800V architectures.
             </p>
             <button className="mt-3 text-xs font-semibold text-foreground flex items-center gap-1 hover:opacity-70 transition-opacity">
               Read more <ArrowUpRight size={12} />
@@ -306,7 +298,7 @@ export default function UserDashboardPage() {
         {/* Network Coverage Map Card */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden relative">
           {/* Map placeholder */}
-          <div className="h-full min-h-[220px] relative bg-muted/20 flex items-center justify-center">
+          <div className="h-full min-h-55 relative bg-muted/20 flex items-center justify-center">
             {/* Grid lines mimicking map */}
             <div
               className="absolute inset-0 opacity-10"
@@ -329,7 +321,9 @@ export default function UserDashboardPage() {
                 <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
                   Network Coverage Map
                 </p>
-                <p className="text-xs font-semibold text-foreground mt-0.5">Berlin Gateway</p>
+                <p className="text-xs font-semibold text-foreground mt-0.5">
+                  Berlin Gateway
+                </p>
               </div>
             </div>
 
@@ -349,7 +343,6 @@ export default function UserDashboardPage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

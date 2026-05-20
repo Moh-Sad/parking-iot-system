@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 export default function UserLogsPage() {
   return (
-    <div className="mt-2 flex flex-col gap-6 sm:mt-4 max-w-5xl">
+    <div className="mt-2 flex flex-col gap-6 sm:mt-4">
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-2">
         <div>
@@ -46,7 +46,7 @@ export default function UserLogsPage() {
         <div className="flex flex-col gap-3">
           {/* Alert 1 */}
           <div className="relative bg-[#141414] rounded-lg p-4 pl-5 flex items-center justify-between group cursor-pointer hover:bg-[#1a1a1a] transition-colors border border-transparent hover:border-border/40">
-            <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-foreground rounded-l-lg" />
+            <div className="absolute left-0 top-0 bottom-0 w-0.75 bg-foreground rounded-l-lg" />
             <div className="flex items-start gap-4">
               <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-foreground shrink-0" />
               <div>
@@ -65,7 +65,7 @@ export default function UserLogsPage() {
           </div>
           {/* Alert 2 */}
           <div className="relative bg-[#141414] rounded-lg p-4 pl-5 flex items-center justify-between group cursor-pointer hover:bg-[#1a1a1a] transition-colors border border-transparent hover:border-border/40">
-            <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-foreground rounded-l-lg" />
+            <div className="absolute left-0 top-0 bottom-0 w-0.75 bg-foreground rounded-l-lg" />
             <div className="flex items-start gap-4">
               <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-foreground shrink-0" />
               <div>

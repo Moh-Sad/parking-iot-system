@@ -79,7 +79,7 @@ export function DashboardSidebar() {
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background shadow-sm transition group-hover:border-border">
             <Zap
-              className="h-[22px] w-[22px] text-foreground"
+              className="h-5.5 w-5.5 text-foreground"
               strokeWidth={2.25}
               aria-hidden
             />
@@ -93,7 +93,15 @@ export function DashboardSidebar() {
         </Link>
 
         <nav className="mt-10 flex flex-col gap-2" aria-label="Main">
-          {navItems.map(({ key, label, icon: Icon }) => {
+          {navItems
+            .filter(({ key }) => {
+              // Hide management button only for /user role
+              if (key === "management" && role === "user") {
+                return false;
+              }
+              return true;
+            })
+            .map(({ key, label, icon: Icon }) => {
             const href = hrefForItem(role, key);
             const active = isNavActive(pathname, href, key);
             return (
@@ -109,14 +117,14 @@ export function DashboardSidebar() {
               >
                 <span
                   className={cn(
-                    "absolute inset-y-0 left-0 w-[3px] rounded-l-xl bg-primary transition-opacity duration-200",
+                    "absolute inset-y-0 left-0 w-0.75 rounded-l-xl bg-primary transition-opacity duration-200",
                     active ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                   )}
                   aria-hidden
                 />
                 <Icon
                   className={cn(
-                    "relative h-[18px] w-[18px] shrink-0 transition-colors",
+                    "relative h-4.5 w-4.5 shrink-0 transition-colors",
                     active
                       ? "text-foreground"
                       : "text-muted-foreground group-hover:text-foreground",

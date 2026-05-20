@@ -1,5 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import type { ReactNode } from "react";
-import { ChevronDown, Download, MoreVertical, UserPlus } from "lucide-react";
+import { Download, MoreVertical } from "lucide-react";
+import { AddSupervisorDialog } from "@/components/AddSupervisorDialog";
+import { Select } from "@/components/ui/select";
 
 const supervisors = [
   {
@@ -40,9 +45,6 @@ const supervisors = [
   },
 ];
 
-const filterSelectClass =
-  "w-full appearance-none rounded-lg border border-border bg-card py-2.5 pl-3 pr-9 text-sm font-medium text-foreground outline-none transition-colors hover:border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
-
 function FilterField({
   label,
   children,
@@ -61,7 +63,35 @@ function FilterField({
 }
 
 export default function SupervisorManagementPage() {
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [regionFilter, setRegionFilter] = useState("global");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [activityFilter, setActivityFilter] = useState("any");
   const totalCount = 128;
+
+  const roleOptions = [
+    { label: "All Roles", value: "all" },
+    { label: "Network Lead", value: "lead" },
+    { label: "Regional Admin", value: "admin" },
+  ];
+
+  const regionOptions = [
+    { label: "Global View", value: "global" },
+    { label: "EMEA", value: "emea" },
+    { label: "APAC", value: "apac" },
+  ];
+
+  const statusOptions = [
+    { label: "All Statuses", value: "all" },
+    { label: "Active", value: "active" },
+    { label: "Inactive", value: "inactive" },
+  ];
+
+  const activityOptions = [
+    { label: "Any Time", value: "any" },
+    { label: "Last 24 hours", value: "24h" },
+    { label: "Last 7 days", value: "7d" },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -82,78 +112,52 @@ export default function SupervisorManagementPage() {
             <Download className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
             Export CSV
           </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            <UserPlus className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
-            Add supervisor
-          </button>
+          <AddSupervisorDialog />
         </div>
       </header>
 
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:p-6 lg:flex-row lg:items-end lg:gap-6">
         <FilterField label="System role">
-          <div className="relative">
-            <select className={filterSelectClass} defaultValue="all">
-              <option value="all">All Roles</option>
-              <option value="lead">Network Lead</option>
-              <option value="admin">Regional Admin</option>
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              strokeWidth={2}
-              aria-hidden
-            />
-          </div>
+          <Select
+            value={roleFilter}
+            onValueChange={setRoleFilter}
+            options={roleOptions}
+            placeholder="Select role"
+            className="bg-card border-border text-foreground"
+          />
         </FilterField>
         <FilterField label="Service region">
-          <div className="relative">
-            <select className={filterSelectClass} defaultValue="global">
-              <option value="global">Global View</option>
-              <option value="emea">EMEA</option>
-              <option value="apac">APAC</option>
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              strokeWidth={2}
-              aria-hidden
-            />
-          </div>
+          <Select
+            value={regionFilter}
+            onValueChange={setRegionFilter}
+            options={regionOptions}
+            placeholder="Select region"
+            className="bg-card border-border text-foreground"
+          />
         </FilterField>
         <FilterField label="Operational status">
-          <div className="relative">
-            <select className={filterSelectClass} defaultValue="all">
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              strokeWidth={2}
-              aria-hidden
-            />
-          </div>
+          <Select
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            options={statusOptions}
+            placeholder="Select status"
+            className="bg-card border-border text-foreground"
+          />
         </FilterField>
         <FilterField label="Last activity">
-          <div className="relative">
-            <select className={filterSelectClass} defaultValue="any">
-              <option value="any">Any Time</option>
-              <option value="24h">Last 24 hours</option>
-              <option value="7d">Last 7 days</option>
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              strokeWidth={2}
-              aria-hidden
-            />
-          </div>
+          <Select
+            value={activityFilter}
+            onValueChange={setActivityFilter}
+            options={activityOptions}
+            placeholder="Select activity"
+            className="bg-card border-border text-foreground"
+          />
         </FilterField>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[800px] text-left text-sm">
+          <table className="w-full min-w-200 text-left text-sm">
             <thead>
               <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                 <th className="px-6 py-4 font-bold">Name &amp; identifier</th>
