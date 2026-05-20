@@ -71,14 +71,7 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-1 text-sm">
-                <label className="flex cursor-pointer items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-border/50 bg-background text-primary focus:ring-primary/30"
-                  />
-                  Remember me
-                </label>
+              <div className="flex items-center justify-end px-1 text-sm">
                   <Link href="/auth/recovery" className="font-medium text-primary hover:underline">
                   Forgot password?
                 </Link>
