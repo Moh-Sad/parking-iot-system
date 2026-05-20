@@ -80,8 +80,8 @@ export default function Login() {
               </div>
 
               <Button className="h-14 w-full rounded-2xl bg-primary text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:bg-primary/90">
-                Enter Dashboard
-                <ArrowRight className="ml-2 h-5 w-5" />
+                Sign In
+                
               </Button>
             </form>
 

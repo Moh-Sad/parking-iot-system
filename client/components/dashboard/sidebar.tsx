@@ -63,16 +63,16 @@ export function DashboardSidebar() {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border/80 md:flex",
-        "bg-background",
+        "fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-white/8 md:flex",
+        "bg-[#0a0a0b]",
       )}
     >
-      <div className="flex h-full flex-col px-3 pb-6 pt-6">
+      <div className="flex h-full flex-col px-4 pb-5 pt-4">
         <Link
           href={homeHref}
-          className="group flex shrink-0 items-start gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-foreground/4"
+          className="group flex shrink-0 items-start gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-white/4"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background shadow-sm transition group-hover:border-border">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white text-black shadow-sm transition group-hover:border-white/20">
             <Zap
               className="h-[22px] w-[22px] text-foreground"
               strokeWidth={2.25}
@@ -80,14 +80,14 @@ export function DashboardSidebar() {
             />
           </span>
           <div className="min-w-0 pt-0.5">
-            <p className="text-sm font-bold tracking-wide text-foreground">VOLTCORE</p>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="text-sm font-bold tracking-wide text-white">VOLTCORE</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/40">
               PRECISION EV NETWORK
             </p>
           </div>
         </Link>
 
-        <nav className="mt-10 flex flex-col gap-2" aria-label="Main">
+        <nav className="mt-8 flex flex-col gap-2" aria-label="Main">
           {navItems.map(({ key, label, icon: Icon }) => {
             const href = hrefForItem(role, key);
             const active = isNavActive(pathname, href, key);
@@ -98,13 +98,13 @@ export function DashboardSidebar() {
                 className={cn(
                   "group relative flex items-center gap-3 overflow-hidden rounded-xl py-3.5 pl-4 pr-3 text-sm font-medium transition-colors duration-200",
                   active
-                    ? "bg-muted/40 text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/25 hover:text-foreground",
+                    ? "bg-white/6 text-white shadow-sm"
+                    : "text-white/45 hover:bg-white/3 hover:text-white",
                 )}
               >
                 <span
                   className={cn(
-                    "absolute inset-y-0 left-0 w-[3px] rounded-l-xl bg-primary transition-opacity duration-200",
+                    "absolute inset-y-0 left-0 w-[3px] rounded-l-xl bg-white transition-opacity duration-200",
                     active ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                   )}
                   aria-hidden
@@ -113,8 +113,8 @@ export function DashboardSidebar() {
                   className={cn(
                     "relative h-[18px] w-[18px] shrink-0 transition-colors",
                     active
-                      ? "text-foreground"
-                      : "text-muted-foreground group-hover:text-foreground",
+                      ? "text-white"
+                      : "text-white/40 group-hover:text-white",
                   )}
                   strokeWidth={active ? 2.25 : 2}
                   aria-hidden
@@ -126,6 +126,12 @@ export function DashboardSidebar() {
             );
           })}
         </nav>
+
+        <div className="mt-auto pt-8">
+          <button className="flex w-full items-center justify-center rounded-xl border border-white/10 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90">
+            Deploy Station
+          </button>
+        </div>
       </div>
     </aside>
   );
