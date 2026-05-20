@@ -106,6 +106,121 @@ export interface UserRow {
   email: string;
 }
 
+// --- USER role: wallet, sessions, finances ---
+export interface WalletDto {
+  id: string;
+  balanceCents: number;
+  currency: string;
+  autoRefillEnabled: boolean;
+  autoRefillThresholdCents: number;
+  autoRefillAmountCents: number;
+  monthlySpendCents: number;
+  lastTopUp: { amountCents: number; createdAt: string } | null;
+}
+
+export interface UserPaymentMethodDto {
+  id: string;
+  brand: "VISA" | "MASTERCARD" | "AMEX" | "DISCOVER" | "OTHER";
+  last4: string;
+  expiryMonth: number;
+  expiryYear: number;
+  holderName: string | null;
+  isDefault: boolean;
+}
+
+export interface ActiveSessionDto {
+  id: string;
+  stationCode: string;
+  stationName: string;
+  locationLabel: string;
+  startTime: string;
+  timeElapsedSeconds: number;
+  currentCostCents: number;
+  currency: string;
+  stateOfChargePct: number | null;
+  powerDeliveryKW: number | null;
+  estimatedRemainingMinutes: number | null;
+  energyDeliveredKWh: number | null;
+  unitCostPerKWhCents: number | null;
+  connectorType: string | null;
+}
+
+export interface ChargingHistoryItem {
+  id: string;
+  stationCode: string;
+  stationName: string;
+  locationLabel: string;
+  date: string;
+  energyKWh: number | null;
+  durationSeconds: number | null;
+  totalCostCents: number | null;
+  currency: string;
+}
+
+export interface UserFinancesSummary {
+  totalSpentYearToDateCents: number;
+  pendingBalanceCents: number;
+  unpaidInvoiceCount: number;
+  availableCreditsCents: number;
+  currency: string;
+}
+
+export interface UserInvoiceRow {
+  id: string;
+  code: string;
+  client: string;
+  node: string;
+  date: string;
+  amount: number;
+  currency: string;
+  status: InvoiceSummary["status"];
+}
+
+export interface ReceiptDto {
+  sessionId: string;
+  receiptCode: string;
+  date: string;
+  endTime: string | null;
+  vehicleModel: string;
+  vehiclePlateLast4: string;
+  station: { id: string; code: string; name: string; address: string | null; region: string };
+  connectorType: string;
+  peakPowerKW: number | null;
+  energyDeliveredKWh: number | null;
+  durationMinutes: number | null;
+  unitCostPerKWhCents: number | null;
+  energyCostCents: number;
+  facilityFeeCents: number;
+  idleMinutes: number;
+  idleFeeCents: number;
+  taxCents: number;
+  totalCostCents: number;
+  currency: string;
+  paymentMethod: { brand: string; last4: string } | null;
+  carbonOffsetGramsCO2e: number | null;
+}
+
+// --- Admin finances aggregations ---
+export interface FinanceKpis {
+  totalRevenueCents: number;
+  totalRevenueDeltaPct: number;
+  avgTransactionCents: number;
+  avgTransactionDeltaPct: number;
+  pendingPayoutsCents: number;
+  pendingPayoutsDeltaPct: number;
+  currency: string;
+}
+
+export interface RevenuePoint {
+  date: string;
+  revenueCents: number;
+}
+
+export interface DailyVolumePoint {
+  day: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+  count: number;
+}
+
 export interface AuditLogRow {
   id: string;
   timestamp: string;

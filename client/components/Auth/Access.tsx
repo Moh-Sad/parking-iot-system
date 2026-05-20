@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { useAuth, homeForRole } from "@/lib/auth-context";
 import { api, ApiCallError } from "@/lib/api";
 
-const ROLE_LABEL: Record<"ADMIN" | "SUPERVISOR", string> = {
+const ROLE_LABEL: Record<"ADMIN" | "SUPERVISOR" | "USER", string> = {
   ADMIN: "Administrator",
   SUPERVISOR: "Network Supervisor",
+  USER: "Driver",
 };
 
 export default function Access() {

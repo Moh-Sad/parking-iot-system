@@ -23,13 +23,23 @@ export function DashboardGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Role scoping: keep supervisors out of /admin/* and admins out of /supervisor/*.
-    if (user?.role === "SUPERVISOR" && pathname.startsWith("/admin")) {
+    // Role scoping: each role can only browse its own area.
+    const role = user?.role;
+    if (!role) return;
+    const inAdmin = pathname.startsWith("/admin");
+    const inSupervisor = pathname.startsWith("/supervisor");
+    const inUser = pathname.startsWith("/user");
+
+    if (role === "SUPERVISOR" && (inAdmin || inUser)) {
       router.replace(homeForRole("SUPERVISOR"));
       return;
     }
-    if (user?.role === "ADMIN" && pathname.startsWith("/supervisor")) {
+    if (role === "ADMIN" && (inSupervisor || inUser)) {
       router.replace(homeForRole("ADMIN"));
+      return;
+    }
+    if (role === "USER" && (inAdmin || inSupervisor)) {
+      router.replace(homeForRole("USER"));
       return;
     }
   }, [isLoading, isAuthenticated, mustCompleteProfile, user?.role, pathname, router]);

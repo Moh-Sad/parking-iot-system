@@ -31,7 +31,7 @@ function roleBase(role: DashboardRole): "/admin" | "/supervisor" | "/user" {
   return "/admin";
 }
 
-const navItems = [
+const ALL_NAV_ITEMS = [
   { key: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
   { key: "management" as const, label: "Management", icon: Briefcase },
   { key: "finances" as const, label: "Finances", icon: CreditCard },
@@ -39,7 +39,18 @@ const navItems = [
   { key: "logs" as const, label: "Logs", icon: FileText },
 ];
 
-function hrefForItem(role: DashboardRole, key: (typeof navItems)[number]["key"]): string {
+const NAV_BY_ROLE: Record<DashboardRole, (typeof ALL_NAV_ITEMS)[number]["key"][]> = {
+  admin: ["dashboard", "management", "finances", "settings", "logs"],
+  supervisor: ["dashboard", "management", "finances", "settings", "logs"],
+  user: ["dashboard", "finances"],
+};
+
+function navItemsForRole(role: DashboardRole): typeof ALL_NAV_ITEMS {
+  const allowed = NAV_BY_ROLE[role];
+  return ALL_NAV_ITEMS.filter((item) => allowed.includes(item.key));
+}
+
+function hrefForItem(role: DashboardRole, key: (typeof ALL_NAV_ITEMS)[number]["key"]): string {
   const base = roleBase(role);
   if (key === "dashboard") return base;
   if (key === "management") {
@@ -51,7 +62,7 @@ function hrefForItem(role: DashboardRole, key: (typeof navItems)[number]["key"])
 function isNavActive(
   pathname: string,
   href: string,
-  key: (typeof navItems)[number]["key"],
+  key: (typeof ALL_NAV_ITEMS)[number]["key"],
 ): boolean {
   if (key === "dashboard") {
     return pathname === href;
@@ -93,7 +104,7 @@ export function DashboardSidebar() {
         </Link>
 
         <nav className="mt-10 flex flex-col gap-2" aria-label="Main">
-          {navItems.map(({ key, label, icon: Icon }) => {
+          {navItemsForRole(role).map(({ key, label, icon: Icon }) => {
             const href = hrefForItem(role, key);
             const active = isNavActive(pathname, href, key);
             return (

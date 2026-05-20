@@ -2,7 +2,7 @@ const ACCESS_KEY = "parking_iot_access";
 const REFRESH_KEY = "parking_iot_refresh";
 const USER_KEY = "parking_iot_user";
 
-export type Role = "ADMIN" | "SUPERVISOR";
+export type Role = "ADMIN" | "SUPERVISOR" | "USER";
 
 export interface StoredUser {
   id: string;

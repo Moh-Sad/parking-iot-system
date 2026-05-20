@@ -27,7 +27,11 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const homeForRole = (role: Role): string => (role === "ADMIN" ? "/admin" : "/supervisor");
+const homeForRole = (role: Role): string => {
+  if (role === "ADMIN") return "/admin";
+  if (role === "USER") return "/user";
+  return "/supervisor";
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
