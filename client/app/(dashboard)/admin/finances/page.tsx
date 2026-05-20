@@ -1,397 +1,346 @@
-"use client";
-
 import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  CreditCard,
-  Clock,
-  Download,
-  MoreHorizontal,
   ArrowUpRight,
+  BadgeDollarSign,
+  Clock3,
+  Download,
+  Hourglass,
+  ReceiptText,
+  TrendingUp,
 } from "lucide-react";
 
-// ── Inline SVG Revenue Chart (pure CSS-variable aware) ──────────────────────
-function RevenueChart() {
-  const points = [
-    { x: 0, y: 65 },
-    { x: 60, y: 50 },
-    { x: 120, y: 70 },
-    { x: 180, y: 30 },
-    { x: 240, y: 55 },
-    { x: 300, y: 20 },
-    { x: 360, y: 45 },
-    { x: 420, y: 10 },
-    { x: 480, y: 35 },
-  ];
+const metricCards = [
+  {
+    label: "Total revenue",
+    value: "$2,842,910.00",
+    delta: "+12.4%",
+    note: "vs last month",
+    icon: TrendingUp,
+  },
+  {
+    label: "Avg transaction value",
+    value: "$42.85",
+    delta: "+2.1%",
+    note: "vs last month",
+    icon: ReceiptText,
+  },
+  {
+    label: "Pending payouts",
+    value: "$128,402.15",
+    delta: "Processing",
+    note: "4 batches queued",
+    icon: Hourglass,
+  },
+];
 
-  const lineD = points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-    .join(" ");
-
-  // Smooth bezier curve path
-  const smoothD = points.reduce((d, p, i, arr) => {
-    if (i === 0) return `M ${p.x} ${p.y}`;
-    const prev = arr[i - 1];
-    const cpX = (prev.x + p.x) / 2;
-    return `${d} C ${cpX} ${prev.y} ${cpX} ${p.y} ${p.x} ${p.y}`;
-  }, "");
-
-  const fillD = `${smoothD} L ${points[points.length - 1].x} 100 L 0 100 Z`;
-
-  const labels = ["JAN21", "JAN22", "JAN23", "JAN24", "JAN25"];
-
-  return (
-    <svg viewBox="0 0 480 110" className="w-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="rev-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="0.20" />
-          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {/* Grid lines */}
-      {[20, 40, 60, 80].map((y) => (
-        <line
-          key={y}
-          x1="0"
-          y1={y}
-          x2="480"
-          y2={y}
-          stroke="currentColor"
-          strokeOpacity="0.08"
-          strokeWidth="1"
-        />
-      ))}
-      {/* Fill */}
-      <path d={fillD} fill="url(#rev-fill)" className="text-foreground" />
-      {/* Line */}
-      <path
-        d={smoothD}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="text-foreground"
-      />
-      {/* Dots */}
-      {points.map((p, i) => (
-        <circle
-          key={i}
-          cx={p.x}
-          cy={p.y}
-          r="3"
-          fill="currentColor"
-          className="text-foreground"
-        />
-      ))}
-      {/* X labels */}
-      {labels.map((label, i) => (
-        <text
-          key={label}
-          x={i * 120}
-          y="108"
-          textAnchor="middle"
-          fontSize="7"
-          fill="currentColor"
-          fillOpacity="0.4"
-          fontWeight="600"
-          letterSpacing="1"
-        >
-          {label}
-        </text>
-      ))}
-    </svg>
-  );
-}
-
-// ── Inline SVG Bar Chart (Volumetric) ───────────────────────────────────────
-function VolumetricChart() {
-  const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-  const heights = [55, 72, 45, 88, 60, 95, 38];
-
-  return (
-    <svg viewBox="0 0 220 90" className="w-full" preserveAspectRatio="xMidYMax meet">
-      {days.map((day, i) => {
-        const barH = (heights[i] / 100) * 72;
-        const x = i * 32 + 4;
-        const isMax = heights[i] === Math.max(...heights);
-        return (
-          <g key={day}>
-            <rect
-              x={x}
-              y={78 - barH}
-              width="20"
-              height={barH}
-              rx="4"
-              fill="currentColor"
-              fillOpacity={isMax ? "1" : "0.25"}
-              className="text-foreground"
-            />
-            <text
-              x={x + 10}
-              y="88"
-              textAnchor="middle"
-              fontSize="6"
-              fill="currentColor"
-              fillOpacity="0.4"
-              fontWeight="600"
-              letterSpacing="0.5"
-            >
-              {day}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ── Data ────────────────────────────────────────────────────────────────────
 const transactions = [
   {
     id: "TXN-94021-884",
-    station: "Berlin North Cluster B4",
+    location: "Berlin North Cluster B4",
     status: "Completed",
     method: "Corporate Fleet Card",
     amount: "$142.50",
   },
   {
     id: "TXN-94022-102",
-    station: "Munich Tech Hub S1",
+    location: "Munich Tech Hub S1",
     status: "Pending",
     method: "Direct Pay",
     amount: "$88.20",
   },
   {
     id: "TXN-94023-559",
-    station: "Hamburg Port Terminal",
+    location: "Hamburg Port Terminal",
     status: "Completed",
     method: "Mobile App Wallet",
     amount: "$31.00",
   },
   {
     id: "TXN-94024-912",
-    station: "Paris Center High-Volt",
+    location: "Paris Center High-Volt",
     status: "Completed",
     method: "RFID Pass",
     amount: "$215.75",
   },
   {
     id: "TXN-94025-442",
-    station: "London East EV Station",
+    location: "London East EV Station",
     status: "Failed",
     method: "Apple Pay",
     amount: "$15.00",
   },
-  {
-    id: "TXN-94026-118",
-    station: "Tokyo Central Hub 7",
-    status: "Completed",
-    method: "Corporate Fleet Card",
-    amount: "$64.20",
-  },
-  {
-    id: "TXN-94027-303",
-    station: "Amsterdam West G1",
-    status: "Pending",
-    method: "Direct Pay",
-    amount: "$112.50",
-  },
 ];
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "Completed") {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="w-1.5 h-1.5 rounded-full bg-foreground" />
-        <span className="text-foreground font-medium">{status}</span>
-      </div>
-    );
-  }
-  if (status === "Pending") {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-        <span className="text-muted-foreground font-medium">{status}</span>
-      </div>
-    );
-  }
+const volumeBars = [
+  { day: "Mon", value: 42 },
+  { day: "Tue", value: 66 },
+  { day: "Wed", value: 58 },
+  { day: "Thu", value: 92 },
+  { day: "Fri", value: 55 },
+  { day: "Sat", value: 82 },
+  { day: "Sun", value: 92 },
+];
+
+function StatusDot({ status }: { status: string }) {
+  const color =
+    status === "Completed"
+      ? "bg-emerald-500 dark:bg-primary"
+      : status === "Failed"
+        ? "bg-destructive"
+        : "bg-amber-500";
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-1.5 h-1.5 rounded-full bg-destructive" />
-      <span className="text-destructive font-medium">{status}</span>
-    </div>
+    <span className="flex items-center gap-2">
+      <span className={`h-1.5 w-1.5 rounded-full ${color}`} aria-hidden />
+      <span
+        className={
+          status === "Pending"
+            ? "font-medium text-muted-foreground"
+            : "font-medium text-foreground"
+        }
+      >
+        {status}
+      </span>
+    </span>
   );
 }
 
-// ── Page ────────────────────────────────────────────────────────────────────
-export default function FinancePage() {
+export default function AdminFinancesPage() {
   return (
-    <div className="mt-2 flex flex-col gap-6 sm:mt-4">
-
-      {/* ── Top Stat Cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        {/* Total Revenue */}
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <DollarSign size={100} />
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] uppercase">
-              Total Revenue
-            </h2>
-            <ArrowUpRight size={14} className="text-muted-foreground" />
-          </div>
-          <div className="text-3xl font-bold text-foreground">$2,842,910</div>
-          <p className="text-sm text-muted-foreground mt-2 font-medium flex items-center gap-1">
-            <TrendingUp size={13} className="text-foreground" />
-            +12.4% vs last month
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            VoltCore finance
           </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Revenue Operations
+          </h1>
         </div>
+        <button
+          type="button"
+          className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-foreground transition-colors hover:bg-muted/30"
+        >
+          <Download className="h-4 w-4" strokeWidth={2} aria-hidden />
+          Export CSV
+        </button>
+      </header>
 
-        {/* Avg Transaction Value */}
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <CreditCard size={100} />
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] uppercase">
-              Avg Transaction Value
-            </h2>
-            <ArrowUpRight size={14} className="text-muted-foreground" />
-          </div>
-          <div className="text-3xl font-bold text-foreground">$42.85</div>
-          <p className="text-sm text-muted-foreground mt-2 font-medium flex items-center gap-1">
-            <TrendingUp size={13} className="text-foreground" />
-            +2% vs last week
-          </p>
-        </div>
-
-        {/* Pending Payouts */}
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <Clock size={100} />
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] uppercase">
-              Pending Payouts
-            </h2>
-            <div className="text-xs font-semibold text-muted-foreground border border-border rounded-full px-2 py-0.5">
-              Processing
+      <section className="grid gap-4 md:grid-cols-3">
+        {metricCards.map(({ label, value, delta, note, icon: Icon }) => (
+          <article
+            key={label}
+            className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                {label}
+              </p>
+              <Icon
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                strokeWidth={2}
+                aria-hidden
+              />
             </div>
-          </div>
-          <div className="text-3xl font-bold text-foreground">$128,402</div>
-          <p className="text-sm text-muted-foreground mt-2 font-medium flex items-center gap-1">
-            <TrendingDown size={13} className="text-muted-foreground" />
-            -3.1% vs last month
-          </p>
-        </div>
-      </div>
+            <p className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              {value}
+            </p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-foreground" aria-hidden />
+              {delta}
+              <span className="font-medium text-muted-foreground">{note}</span>
+            </p>
+          </article>
+        ))}
+      </section>
 
-      {/* ── Charts Row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Revenue Performance Chart (2/3) */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.95fr)]">
+        <article className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-foreground mb-1">Revenue Performance</h2>
-              <p className="text-sm text-muted-foreground">
-                Tracking global transaction flow across the network.
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Revenue Performance
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Visualizing global transaction flow across the network.
               </p>
             </div>
-            <div className="flex gap-1 shrink-0">
-              {["5D", "30D", "1Y"].map((label) => (
+            <div className="inline-flex w-fit rounded-lg border border-border bg-background p-1">
+              {["7D", "30D", "1Y"].map((item) => (
                 <button
-                  key={label}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg border transition-colors ${
-                    label === "30D"
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                  key={item}
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${
+                    item === "30D"
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {label}
+                  {item}
                 </button>
               ))}
             </div>
           </div>
-          <div className="w-full h-32">
-            <RevenueChart />
-          </div>
-        </div>
 
-        {/* Volumetric Data Chart (1/3) */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-2">
+          <div className="mt-8 h-[260px] rounded-lg bg-muted/10 p-3">
+            <svg
+              className="h-full w-full overflow-visible"
+              viewBox="0 0 720 250"
+              role="img"
+              aria-label="Revenue line chart from October 1 to October 28"
+            >
+              <defs>
+                <linearGradient id="revenueFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.16" />
+                  <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {[50, 100, 150, 200].map((y) => (
+                <line
+                  key={y}
+                  x1="0"
+                  x2="720"
+                  y1={y}
+                  y2={y}
+                  className="stroke-border/70"
+                  strokeDasharray="4 10"
+                />
+              ))}
+              <path
+                d="M0 168 C70 145 110 166 150 164 C210 160 220 188 285 170 C360 149 390 83 455 88 C520 94 530 198 590 192 C654 185 685 143 720 83"
+                fill="none"
+                className="stroke-foreground"
+                strokeLinecap="round"
+                strokeWidth="3"
+              />
+              <path
+                d="M0 168 C70 145 110 166 150 164 C210 160 220 188 285 170 C360 149 390 83 455 88 C520 94 530 198 590 192 C654 185 685 143 720 83 L720 250 L0 250 Z"
+                className="fill-foreground"
+                opacity="0.06"
+              />
+              <circle cx="180" cy="166" r="4" className="fill-foreground" />
+              {[
+                ["01 OCT", 0],
+                ["07 OCT", 180],
+                ["14 OCT", 360],
+                ["21 OCT", 540],
+                ["28 OCT", 700],
+              ].map(([label, x]) => (
+                <text
+                  key={label}
+                  x={x}
+                  y="238"
+                  className="fill-muted-foreground text-[11px] font-bold"
+                >
+                  {label}
+                </text>
+              ))}
+            </svg>
+          </div>
+        </article>
+
+        <article className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-foreground mb-1">Volumetric Data</h2>
-              <p className="text-sm text-muted-foreground">Daily transaction counts.</p>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Volumetric Data
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Daily transaction counts.
+              </p>
             </div>
-            <button className="text-muted-foreground hover:text-foreground">
-              <MoreHorizontal size={20} />
-            </button>
+            <BadgeDollarSign className="h-5 w-5 text-muted-foreground" aria-hidden />
           </div>
-          <div className="mt-4">
-            <VolumetricChart />
-          </div>
-        </div>
-      </div>
 
-      {/* ── Recent Transactions Table ── */}
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h2 className="text-xl font-bold text-foreground mb-1">Recent Transactions</h2>
-            <p className="text-sm text-muted-foreground">Real-time ledger of network activity.</p>
+          <div className="mt-8 flex h-[260px] items-end gap-3 rounded-lg bg-muted/10 px-3 pb-4 pt-5">
+            {volumeBars.map((bar) => (
+              <div key={bar.day} className="flex min-w-0 flex-1 flex-col items-center gap-3">
+                <div className="flex h-44 w-full items-end">
+                  <div
+                    className="w-full rounded-t-sm bg-foreground/15 transition-colors first:bg-foreground/20 dark:bg-primary/20"
+                    style={{ height: `${bar.value}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                  {bar.day}
+                </span>
+              </div>
+            ))}
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary text-foreground transition-colors shrink-0">
-            <Download size={14} />
+        </article>
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-border/80 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Recent Transactions
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Real-time ledger of network activity.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-foreground transition-colors hover:bg-muted/30"
+          >
+            <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             Export CSV
           </button>
         </div>
 
-        <div className="w-full overflow-x-auto rounded-lg">
-          <table className="w-full text-left text-sm whitespace-nowrap min-w-[600px]">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
-              <tr className="border-b border-border/50 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-                <th className="pb-4 font-bold">Transaction ID</th>
-                <th className="pb-4 font-bold">Station Location</th>
-                <th className="pb-4 font-bold">Status</th>
-                <th className="pb-4 font-bold">Method</th>
-                <th className="pb-4 text-right font-bold">Amount</th>
+              <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                <th className="px-6 py-4 font-bold">Transaction ID</th>
+                <th className="px-4 py-4 font-bold">Station Location</th>
+                <th className="px-4 py-4 font-bold">Status</th>
+                <th className="px-4 py-4 font-bold">Method</th>
+                <th className="px-6 py-4 text-right font-bold">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
-              {transactions.map((txn) => (
-                <tr key={txn.id} className="group hover:bg-muted/10 transition-colors">
-                  <td className="py-4 font-medium text-muted-foreground">{txn.id}</td>
-                  <td className="py-4 text-foreground">{txn.station}</td>
-                  <td className="py-4">
-                    <StatusBadge status={txn.status} />
+            <tbody className="divide-y divide-border/60">
+              {transactions.map((transaction) => (
+                <tr
+                  key={transaction.id}
+                  className="transition-colors hover:bg-muted/10"
+                >
+                  <td className="px-6 py-5 font-mono text-xs font-medium text-muted-foreground">
+                    {transaction.id}
                   </td>
-                  <td className="py-4 text-muted-foreground">{txn.method}</td>
-                  <td className="py-4 text-right font-bold text-foreground">{txn.amount}</td>
+                  <td className="px-4 py-5 font-medium text-foreground">
+                    {transaction.location}
+                  </td>
+                  <td className="px-4 py-5 text-xs">
+                    <StatusDot status={transaction.status} />
+                  </td>
+                  <td className="px-4 py-5 text-muted-foreground">
+                    {transaction.method}
+                  </td>
+                  <td className="px-6 py-5 text-right font-bold text-foreground">
+                    {transaction.amount}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination row */}
-        <div className="mt-6 pt-6 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground font-medium">
-          <span>Showing 7 of 38,120 items</span>
-          <div className="flex gap-2">
-            <button className="px-3 py-1.5 border border-border rounded-lg hover:bg-secondary hover:text-foreground transition-colors">
+        <footer className="flex flex-col gap-3 border-t border-border/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+            <Clock3 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+            Showing 5 of 24,010 items
+          </p>
+          <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+            <button type="button" className="transition-colors hover:text-foreground">
               Previous
             </button>
-            <button className="px-3 py-1.5 border border-border rounded-lg hover:bg-secondary hover:text-foreground transition-colors">
+            <button type="button" className="transition-colors hover:text-foreground">
               Next
             </button>
           </div>
-        </div>
-      </div>
-
+        </footer>
+      </section>
     </div>
   );
 }

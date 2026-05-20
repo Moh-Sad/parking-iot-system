@@ -20,14 +20,18 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    const stored = localStorage.getItem(STORAGE_KEY);
-    let isDark: boolean;
-    if (stored === "dark") isDark = true;
-    else if (stored === "light") isDark = false;
-    else isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setDark(isDark);
-    applyTheme(isDark);
+    const frame = window.requestAnimationFrame(() => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      let isDark: boolean;
+      if (stored === "dark") isDark = true;
+      else if (stored === "light") isDark = false;
+      else isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setDark(isDark);
+      applyTheme(isDark);
+      setMounted(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   function toggle() {
