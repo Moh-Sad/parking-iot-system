@@ -4,7 +4,7 @@ import { env } from '../config/env.js';
 
 export interface AccessPayload {
   sub: string;
-  role: 'ADMIN' | 'SUPERVISOR';
+  role: 'ADMIN' | 'SUPERVISOR' | 'USER';
   roleLevel: number;
 }
 

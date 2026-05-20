@@ -13,23 +13,28 @@ import {
 
 import { cn } from "@/lib/utils";
 
-type DashboardRole = "admin" | "supervisor";
+type DashboardRole = "admin" | "supervisor" | "user";
 
 function getDashboardRole(pathname: string): DashboardRole {
   if (pathname === "/supervisor" || pathname.startsWith("/supervisor/")) {
     return "supervisor";
   }
+  if (pathname === "/user" || pathname.startsWith("/user/")) {
+    return "user";
+  }
   return "admin";
 }
 
-function roleBase(role: DashboardRole): "/admin" | "/supervisor" {
-  return role === "supervisor" ? "/supervisor" : "/admin";
+function roleBase(role: DashboardRole): "/admin" | "/supervisor" | "/user" {
+  if (role === "supervisor") return "/supervisor";
+  if (role === "user") return "/user";
+  return "/admin";
 }
 
 const navItems = [
   { key: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
   { key: "management" as const, label: "Management", icon: Briefcase },
-  { key: "finance" as const, label: "Finance", icon: CreditCard },
+  { key: "finances" as const, label: "Finances", icon: CreditCard },
   { key: "settings" as const, label: "Settings", icon: Settings },
   { key: "logs" as const, label: "Logs", icon: FileText },
 ];

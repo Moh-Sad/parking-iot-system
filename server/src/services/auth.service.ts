@@ -10,14 +10,14 @@ import { AUDIT_COMPONENTS, PASSWORD_RESET_TTL_MS } from '../config/constants.js'
 interface LoginResult {
   token: string;
   refreshToken: string;
-  role: 'ADMIN' | 'SUPERVISOR';
+  role: 'ADMIN' | 'SUPERVISOR' | 'USER';
   mustCompleteProfile: boolean;
   user: {
     id: string;
     email: string;
     firstName: string | null;
     lastName: string | null;
-    role: 'ADMIN' | 'SUPERVISOR';
+    role: 'ADMIN' | 'SUPERVISOR' | 'USER';
     roleLevel: number;
     region: string | null;
     uid: string;
