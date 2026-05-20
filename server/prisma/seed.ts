@@ -11,6 +11,8 @@ import {
   PaymentMethod,
   LogStatus,
   NotificationKind,
+  WalletTxKind,
+  CardBrand,
 } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { createId } from '@paralleldrive/cuid2';
@@ -26,6 +28,9 @@ function code(prefix: string, len = 5): string {
 
 async function main() {
   // Clean (dev only)
+  await prisma.walletTransaction.deleteMany({});
+  await prisma.wallet.deleteMany({});
+  await prisma.userPaymentMethod.deleteMany({});
   await prisma.notification.deleteMany({});
   await prisma.invoiceLineItem.deleteMany({});
   await prisma.invoice.deleteMany({});
@@ -105,6 +110,23 @@ async function main() {
     },
   });
 
+  // --- End customer (USER role) ---
+  const customer = await prisma.user.create({
+    data: {
+      email: 'liam@parking-iot.local',
+      passwordHash: await bcrypt.hash('User123!', 12),
+      firstName: 'Liam',
+      lastName: 'Vance',
+      role: Role.USER,
+      roleLevel: 1,
+      status: UserStatus.ACTIVE,
+      region: 'North America',
+      uid: 'USR-LV-401',
+      mustCompleteProfile: false,
+      lastLoginAt: new Date(),
+    },
+  });
+
   // --- Stations ---
   const stations = await Promise.all([
     prisma.station.create({
@@ -138,13 +160,59 @@ async function main() {
   }
 
   // --- Vehicles ---
+  const customerVehicle = await prisma.vehicle.create({
+    data: {
+      plateNumber: 'LV-PLAID-8921',
+      driverName: 'Liam Vance',
+      carType: CarType.EV,
+      model: 'Model S Plaid',
+      ownerId: customer.id,
+    },
+  });
   const vehicles = await Promise.all([
-    prisma.vehicle.create({ data: { plateNumber: 'EV-001-AB', driverName: 'Mara Klein', carType: CarType.EV } }),
-    prisma.vehicle.create({ data: { plateNumber: 'NY-998-ZX', driverName: 'Aaron Park', carType: CarType.SEDAN } }),
-    prisma.vehicle.create({ data: { plateNumber: 'TK-CHARGE-1', driverName: 'Hiro Tanaka', carType: CarType.EV } }),
+    prisma.vehicle.create({ data: { plateNumber: 'EV-001-AB', driverName: 'Mara Klein', carType: CarType.EV, model: 'BYD Seal' } }),
+    prisma.vehicle.create({ data: { plateNumber: 'NY-998-ZX', driverName: 'Aaron Park', carType: CarType.SEDAN, model: 'Tesla Model 3' } }),
+    prisma.vehicle.create({ data: { plateNumber: 'TK-CHARGE-1', driverName: 'Hiro Tanaka', carType: CarType.EV, model: 'Nissan Leaf' } }),
     prisma.vehicle.create({ data: { plateNumber: 'EU-FLEET-7', driverName: 'Sofia Garcia', carType: CarType.VAN } }),
     prisma.vehicle.create({ data: { plateNumber: 'US-PICKUP-3', driverName: 'Jamie Lee', carType: CarType.PICKUP } }),
   ]);
+
+  // --- Customer wallet + payment method ---
+  const customerWallet = await prisma.wallet.create({
+    data: {
+      userId: customer.id,
+      balanceCents: 45280, // $452.80
+      currency: 'USD',
+      autoRefillEnabled: true,
+      autoRefillThresholdCents: 5000,
+      autoRefillAmountCents: 10000,
+    },
+  });
+
+  const customerCard = await prisma.userPaymentMethod.create({
+    data: {
+      userId: customer.id,
+      brand: CardBrand.VISA,
+      last4: '4429',
+      expiryMonth: 12,
+      expiryYear: 2028,
+      holderName: 'Liam Vance',
+      isDefault: true,
+    },
+  });
+
+  // Top-up history
+  await prisma.walletTransaction.create({
+    data: {
+      walletId: customerWallet.id,
+      kind: WalletTxKind.TOPUP,
+      amountCents: 10000,
+      balanceAfterCents: 45280,
+      description: 'Auto top-up · VISA •••• 4429',
+      paymentMethodId: customerCard.id,
+      createdAt: new Date(Date.now() - 4 * 86_400_000),
+    },
+  });
 
   // --- Active assignments (one per station, on slot 1 = CHARGE_AND_PARK) ---
   for (let s = 0; s < stations.length; s++) {
@@ -161,6 +229,90 @@ async function main() {
         battery: 30 + s * 15,
         arrivalTime: new Date(Date.now() - (s + 1) * 1_800_000),
         notes: 'Seeded active assignment',
+      },
+    });
+  }
+
+  // --- Customer's ACTIVE charging session (slot 3 of station 0) ---
+  const customerActiveSlot = await prisma.slot.findFirst({
+    where: { stationId: stations[2]!.id, slotNumber: 3 },
+  });
+  if (customerActiveSlot) {
+    await prisma.slotAssignment.create({
+      data: {
+        slotId: customerActiveSlot.id,
+        vehicleId: customerVehicle.id,
+        status: AssignmentStatus.ACTIVE,
+        battery: 75,
+        currentSocPct: 75,
+        currentPowerKW: 120,
+        peakPowerKW: 250,
+        estimatedRemainingMin: 12,
+        connectorType: 'CCS Combo 2',
+        energyDeliveredKWh: 38.4,
+        unitCostPerKWhCents: 42,
+        energyCostCents: 1422,
+        totalCostCents: 1422,
+        arrivalTime: new Date(Date.now() - 42 * 60_000 - 15_000),
+        notes: "Customer's active session",
+      },
+    });
+  }
+
+  // --- Customer's completed sessions (history) ---
+  const historySessions = [
+    { stationIdx: 2, displayId: 'A-05', kwh: 64.2, durationMin: 76, costCents: 3630, daysAgo: 6, model: 'Model S Plaid', plateLast4: '8921' },
+    { stationIdx: 2, displayId: 'A-07', kwh: 42.5, durationMin: 34, costCents: 1840, daysAgo: 9, model: 'Model S Plaid', plateLast4: '8921' },
+    { stationIdx: 0, displayId: 'A-09', kwh: 28.1, durationMin: 28, costCents: 1240, daysAgo: 14, model: 'Model S Plaid', plateLast4: '8921' },
+    { stationIdx: 2, displayId: 'A-03', kwh: 51.0, durationMin: 58, costCents: 2945, daysAgo: 20, model: 'Model S Plaid', plateLast4: '8921' },
+  ];
+  for (const hs of historySessions) {
+    const station = stations[hs.stationIdx]!;
+    const slot = await prisma.slot.findFirst({ where: { stationId: station.id, displayId: hs.displayId } });
+    if (!slot) continue;
+    const arrived = new Date(Date.now() - hs.daysAgo * 86_400_000);
+    const departed = new Date(arrived.getTime() + hs.durationMin * 60_000);
+    const energyCents = Math.round(hs.kwh * 42);
+    const facilityCents = 250;
+    const idleCents = 0;
+    const subtotal = energyCents + facilityCents + idleCents;
+    const taxCents = Math.round(subtotal * 0.085);
+
+    await prisma.slotAssignment.create({
+      data: {
+        slotId: slot.id,
+        vehicleId: customerVehicle.id,
+        status: AssignmentStatus.COMPLETED,
+        battery: 100,
+        currentSocPct: 100,
+        arrivalTime: arrived,
+        departureTime: departed,
+        durationSeconds: hs.durationMin * 60,
+        connectorType: 'CCS Combo 2',
+        peakPowerKW: 250,
+        energyDeliveredKWh: hs.kwh,
+        unitCostPerKWhCents: 42,
+        energyCostCents: energyCents,
+        facilityFeeCents: facilityCents,
+        idleMinutes: 0,
+        idleFeeCents: idleCents,
+        taxCents,
+        totalCostCents: subtotal + taxCents,
+        carbonOffsetGramsCO2e: Math.round(hs.kwh * 400),
+        paidAt: departed,
+        paymentMethodId: customerCard.id,
+      },
+    });
+
+    // Wallet debit for each completed session
+    await prisma.walletTransaction.create({
+      data: {
+        walletId: customerWallet.id,
+        kind: WalletTxKind.CHARGE,
+        amountCents: -(subtotal + taxCents),
+        balanceAfterCents: 45280, // not historically accurate; OK for seed
+        description: `Charging session · ${station.code} ${hs.displayId}`,
+        createdAt: departed,
       },
     });
   }
@@ -228,6 +380,46 @@ async function main() {
     });
   }
 
+  // --- Customer-owned invoices (consolidated monthly statements) ---
+  const customerInvoices = [
+    { status: InvoiceStatus.PAID, daysAgo: 5, totalCents: 12_450_00 },
+    { status: InvoiceStatus.PROCESSING, daysAgo: 8, totalCents: 8_210_00 },
+    { status: InvoiceStatus.OVERDUE, daysAgo: 23, totalCents: 21_800_00 },
+    { status: InvoiceStatus.PAID, daysAgo: 35, totalCents: 5_530_00 },
+  ];
+  for (let i = 0; i < customerInvoices.length; i++) {
+    const ci = customerInvoices[i]!;
+    const station = stations[i % stations.length]!;
+    const itemEnergy = Math.round(ci.totalCents * 0.78);
+    const itemPremium = Math.round(ci.totalCents * 0.15);
+    const itemMaint = ci.totalCents - itemEnergy - itemPremium;
+    const subtotal = ci.totalCents;
+    await prisma.invoice.create({
+      data: {
+        code: code('INV', 6),
+        clientName: 'Liam Vance',
+        stationId: station.id,
+        ownerId: customer.id,
+        issueDate: new Date(Date.now() - ci.daysAgo * 86_400_000),
+        dueDate: new Date(Date.now() + (30 - ci.daysAgo) * 86_400_000),
+        status: ci.status,
+        paidAt: ci.status === InvoiceStatus.PAID ? new Date(Date.now() - (ci.daysAgo - 1) * 86_400_000) : null,
+        billTo: { name: 'Liam Vance', address: ['702 Tech Plaza, Ste 400', 'San Francisco, CA 94105'] },
+        subtotalCents: subtotal,
+        taxCents: 0,
+        grandTotalCents: subtotal,
+        currency: 'USD',
+        lineItems: {
+          create: [
+            { label: 'kWh Consumption', description: `Node: ${station.code}`, totalCents: itemEnergy, sortOrder: 0 },
+            { label: 'Peak Load Premium', description: 'Network Overload Surcharge', totalCents: itemPremium, sortOrder: 1 },
+            { label: 'Maintenance Fee', description: 'Periodic Sensor Calibration', totalCents: itemMaint, sortOrder: 2 },
+          ],
+        },
+      },
+    });
+  }
+
   // --- Audit logs (20) ---
   for (let i = 0; i < 20; i++) {
     await prisma.auditLog.create({
@@ -284,7 +476,8 @@ async function main() {
   console.log(`✅ Seed complete.
   Admin: ${adminEmail} / ${adminPwd}
   Supervisors: elena@parking-iot.local, kenji@parking-iot.local / Super123!
-  Invited supervisor: ${supInvited.email} (no password yet)`);
+  Invited supervisor: ${supInvited.email} (no password yet)
+  Customer (USER): ${customer.email} / User123!`);
 }
 
 main()

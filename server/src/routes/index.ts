@@ -14,10 +14,18 @@ import notificationsRoutes from './notifications.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import searchRoutes from './search.routes.js';
 import healthRoutes from './health.routes.js';
+import myWalletRoutes from './my-wallet.routes.js';
+import mySessionsRoutes from './my-sessions.routes.js';
+import myFinancesRoutes from './my-finances.routes.js';
+import financesRoutes from './finances.routes.js';
 
 export const apiRouter = Router();
 
 apiRouter.use('/auth', authRoutes);
+apiRouter.use('/me/wallet', myWalletRoutes);
+apiRouter.use('/me/sessions', mySessionsRoutes);
+apiRouter.use('/me/finances', myFinancesRoutes);
+apiRouter.use('/finances', financesRoutes);
 apiRouter.use('/me', meRoutes);
 apiRouter.use('/users', usersRoutes);
 apiRouter.use('/stations', stationsRoutes);
