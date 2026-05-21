@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { DashboardNavbar } from "@/components/dashboard/navbar";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardGuard } from "@/components/dashboard/dashboard-guard";
 
+export const metadata: Metadata = {
+  title: "VoltCore Dashboard - Precision EV Charging Network",
+  description: "Manage your EV charging infrastructure with real-time monitoring, analytics, and control across the VoltCore network.",
+};
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (

@@ -31,7 +31,7 @@ function roleBase(role: DashboardRole): "/admin" | "/supervisor" | "/user" {
   return "/admin";
 }
 
-const ALL_NAV_ITEMS = [
+const navItems = [
   { key: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
   { key: "management" as const, label: "Management", icon: Briefcase },
   { key: "finances" as const, label: "Finances", icon: CreditCard },
@@ -39,18 +39,7 @@ const ALL_NAV_ITEMS = [
   { key: "logs" as const, label: "Logs", icon: FileText },
 ];
 
-const NAV_BY_ROLE: Record<DashboardRole, (typeof ALL_NAV_ITEMS)[number]["key"][]> = {
-  admin: ["dashboard", "management", "finances", "settings", "logs"],
-  supervisor: ["dashboard", "management", "finances", "settings", "logs"],
-  user: ["dashboard", "finances"],
-};
-
-function navItemsForRole(role: DashboardRole): typeof ALL_NAV_ITEMS {
-  const allowed = NAV_BY_ROLE[role];
-  return ALL_NAV_ITEMS.filter((item) => allowed.includes(item.key));
-}
-
-function hrefForItem(role: DashboardRole, key: (typeof ALL_NAV_ITEMS)[number]["key"]): string {
+function hrefForItem(role: DashboardRole, key: (typeof navItems)[number]["key"]): string {
   const base = roleBase(role);
   if (key === "dashboard") return base;
   if (key === "management") {
@@ -62,7 +51,7 @@ function hrefForItem(role: DashboardRole, key: (typeof ALL_NAV_ITEMS)[number]["k
 function isNavActive(
   pathname: string,
   href: string,
-  key: (typeof ALL_NAV_ITEMS)[number]["key"],
+  key: (typeof navItems)[number]["key"],
 ): boolean {
   if (key === "dashboard") {
     return pathname === href;
@@ -90,7 +79,7 @@ export function DashboardSidebar() {
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background shadow-sm transition group-hover:border-border">
             <Zap
-              className="h-[22px] w-[22px] text-foreground"
+              className="h-5.5 w-5.5 text-foreground"
               strokeWidth={2.25}
               aria-hidden
             />
@@ -104,7 +93,15 @@ export function DashboardSidebar() {
         </Link>
 
         <nav className="mt-10 flex flex-col gap-2" aria-label="Main">
-          {navItemsForRole(role).map(({ key, label, icon: Icon }) => {
+          {navItems
+            .filter(({ key }) => {
+              // Hide management button only for /user role
+              if (key === "management" && role === "user") {
+                return false;
+              }
+              return true;
+            })
+            .map(({ key, label, icon: Icon }) => {
             const href = hrefForItem(role, key);
             const active = isNavActive(pathname, href, key);
             return (
@@ -120,14 +117,14 @@ export function DashboardSidebar() {
               >
                 <span
                   className={cn(
-                    "absolute inset-y-0 left-0 w-[3px] rounded-l-xl bg-primary transition-opacity duration-200",
+                    "absolute inset-y-0 left-0 w-0.75 rounded-l-xl bg-primary transition-opacity duration-200",
                     active ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                   )}
                   aria-hidden
                 />
                 <Icon
                   className={cn(
-                    "relative h-[18px] w-[18px] shrink-0 transition-colors",
+                    "relative h-4.5 w-4.5 shrink-0 transition-colors",
                     active
                       ? "text-foreground"
                       : "text-muted-foreground group-hover:text-foreground",

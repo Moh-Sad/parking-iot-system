@@ -1,402 +1,346 @@
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
 import {
-  AlertCircle,
   ArrowUpRight,
-  Clock,
-  CreditCard,
-  DollarSign,
+  BadgeDollarSign,
+  Clock3,
   Download,
-  Loader2,
-  MoreHorizontal,
-  RefreshCw,
-  TrendingDown,
+  Hourglass,
+  ReceiptText,
   TrendingUp,
 } from "lucide-react";
-import { api, ApiCallError } from "@/lib/api";
-import type {
-  DailyVolumePoint,
-  FinanceKpis,
-  Paginated,
-  RevenuePoint,
-  TransactionRow,
-} from "@/lib/api-types";
-import { formatMoney } from "@/lib/format";
 
-type Granularity = "day" | "week" | "month";
-const RANGE_PRESET: { label: string; granularity: Granularity; daysBack: number }[] = [
-  { label: "5D", granularity: "day", daysBack: 5 },
-  { label: "30D", granularity: "day", daysBack: 30 },
-  { label: "1Y", granularity: "month", daysBack: 365 },
+const metricCards = [
+  {
+    label: "Total revenue",
+    value: "$2,842,910.00",
+    delta: "+12.4%",
+    note: "vs last month",
+    icon: TrendingUp,
+  },
+  {
+    label: "Avg transaction value",
+    value: "$42.85",
+    delta: "+2.1%",
+    note: "vs last month",
+    icon: ReceiptText,
+  },
+  {
+    label: "Pending payouts",
+    value: "$128,402.15",
+    delta: "Processing",
+    note: "4 batches queued",
+    icon: Hourglass,
+  },
 ];
 
-const PAYMENT_LABEL: Record<string, string> = {
-  CORPORATE_FLEET_CARD: "Corporate Fleet Card",
-  DIRECT_PAY: "Direct Pay",
-  MOBILE_APP_WALLET: "Mobile App Wallet",
-  RFID_PASS: "RFID Pass",
-  APPLE_PAY: "Apple Pay",
-};
+const transactions = [
+  {
+    id: "TXN-94021-884",
+    location: "Berlin North Cluster B4",
+    status: "Completed",
+    method: "Corporate Fleet Card",
+    amount: "$142.50",
+  },
+  {
+    id: "TXN-94022-102",
+    location: "Munich Tech Hub S1",
+    status: "Pending",
+    method: "Direct Pay",
+    amount: "$88.20",
+  },
+  {
+    id: "TXN-94023-559",
+    location: "Hamburg Port Terminal",
+    status: "Completed",
+    method: "Mobile App Wallet",
+    amount: "$31.00",
+  },
+  {
+    id: "TXN-94024-912",
+    location: "Paris Center High-Volt",
+    status: "Completed",
+    method: "RFID Pass",
+    amount: "$215.75",
+  },
+  {
+    id: "TXN-94025-442",
+    location: "London East EV Station",
+    status: "Failed",
+    method: "Apple Pay",
+    amount: "$15.00",
+  },
+];
 
-function StatusBadge({ status }: { status: TransactionRow["status"] }) {
-  const map = {
-    COMPLETED: { dot: "bg-foreground", text: "text-foreground", label: "Completed" },
-    PENDING: { dot: "bg-muted-foreground", text: "text-muted-foreground", label: "Pending" },
-    FAILED: { dot: "bg-destructive", text: "text-destructive", label: "Failed" },
-  };
-  const t = map[status];
+const volumeBars = [
+  { day: "Mon", value: 42 },
+  { day: "Tue", value: 66 },
+  { day: "Wed", value: 58 },
+  { day: "Thu", value: 92 },
+  { day: "Fri", value: 55 },
+  { day: "Sat", value: 82 },
+  { day: "Sun", value: 92 },
+];
+
+function StatusDot({ status }: { status: string }) {
+  const color =
+    status === "Completed"
+      ? "bg-emerald-500 dark:bg-primary"
+      : status === "Failed"
+        ? "bg-destructive"
+        : "bg-amber-500";
+
   return (
-    <div className="flex items-center gap-2">
-      <div className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />
-      <span className={`${t.text} font-medium`}>{t.label}</span>
-    </div>
-  );
-}
-
-function RevenueChart({ points }: { points: RevenuePoint[] }) {
-  if (points.length === 0) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">No revenue in selected range.</p>;
-  }
-  const maxY = Math.max(...points.map((p) => p.revenueCents), 1);
-  const stepX = points.length > 1 ? 480 / (points.length - 1) : 0;
-  const pts = points.map((p, i) => ({ x: i * stepX, y: 90 - (p.revenueCents / maxY) * 80 }));
-
-  const smoothD = pts.reduce((d, p, i) => {
-    if (i === 0) return `M ${p.x} ${p.y}`;
-    const prev = pts[i - 1]!;
-    const cpX = (prev.x + p.x) / 2;
-    return `${d} C ${cpX} ${prev.y} ${cpX} ${p.y} ${p.x} ${p.y}`;
-  }, "");
-  const fillD = `${smoothD} L ${pts[pts.length - 1]!.x} 100 L 0 100 Z`;
-
-  return (
-    <svg viewBox="0 0 480 110" className="w-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="rev-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="0.20" />
-          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[20, 40, 60, 80].map((y) => (
-        <line key={y} x1="0" y1={y} x2="480" y2={y} stroke="currentColor" strokeOpacity="0.08" strokeWidth="1" />
-      ))}
-      <path d={fillD} fill="url(#rev-fill)" className="text-foreground" />
-      <path d={smoothD} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-foreground" />
-      {pts.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="3" fill="currentColor" className="text-foreground" />
-      ))}
-    </svg>
-  );
-}
-
-function VolumetricChart({ points }: { points: DailyVolumePoint[] }) {
-  const maxH = Math.max(...points.map((p) => p.count), 1);
-  return (
-    <svg viewBox="0 0 220 90" className="w-full" preserveAspectRatio="xMidYMax meet">
-      {points.map((p, i) => {
-        const barH = (p.count / maxH) * 72;
-        const x = i * 32 + 4;
-        const isMax = p.count === maxH && p.count > 0;
-        return (
-          <g key={p.day}>
-            <rect
-              x={x} y={78 - barH} width="20" height={barH} rx="4"
-              fill="currentColor" fillOpacity={isMax ? "1" : "0.25"} className="text-foreground"
-            />
-            <text x={x + 10} y="88" textAnchor="middle" fontSize="6" fill="currentColor" fillOpacity="0.4" fontWeight="600" letterSpacing="0.5">
-              {p.day}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function DeltaLabel({ deltaPct, suffix }: { deltaPct: number; suffix: string }) {
-  const positive = deltaPct >= 0;
-  return (
-    <p className="text-sm text-muted-foreground mt-2 font-medium flex items-center gap-1">
-      {positive ? <TrendingUp size={13} className="text-foreground" /> : <TrendingDown size={13} className="text-muted-foreground" />}
-      {positive ? "+" : ""}{deltaPct.toFixed(1)}% {suffix}
-    </p>
+    <span className="flex items-center gap-2">
+      <span className={`h-1.5 w-1.5 rounded-full ${color}`} aria-hidden />
+      <span
+        className={
+          status === "Pending"
+            ? "font-medium text-muted-foreground"
+            : "font-medium text-foreground"
+        }
+      >
+        {status}
+      </span>
+    </span>
   );
 }
 
 export default function AdminFinancesPage() {
-  const [kpis, setKpis] = useState<FinanceKpis | null>(null);
-  const [revenue, setRevenue] = useState<RevenuePoint[]>([]);
-  const [volume, setVolume] = useState<DailyVolumePoint[]>([]);
-  const [transactions, setTransactions] = useState<TransactionRow[]>([]);
-  const [meta, setMeta] = useState<{ page: number; total: number; limit: number } | null>(null);
-  const [page, setPage] = useState(1);
-  const [rangeIdx, setRangeIdx] = useState(1); // 30D default
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(
-    async (showSpinner: boolean) => {
-      if (showSpinner) setIsLoading(true);
-      else setIsRefreshing(true);
-      setError(null);
-      const range = RANGE_PRESET[rangeIdx]!;
-      const to = new Date();
-      const from = new Date(to.getTime() - range.daysBack * 86_400_000);
-      try {
-        const [k, r, v, tx] = await Promise.all([
-          api.get<FinanceKpis>("/finances/kpis"),
-          api.get<RevenuePoint[]>(
-            `/finances/revenue-timeseries?granularity=${range.granularity}&from=${from.toISOString()}&to=${to.toISOString()}`,
-          ),
-          api.get<DailyVolumePoint[]>("/finances/daily-volume"),
-          api.get<Paginated<TransactionRow>>(`/transactions?page=${page}&limit=7`, { unwrap: false }),
-        ]);
-        setKpis(k);
-        setRevenue(r);
-        setVolume(v);
-        setTransactions(tx.data);
-        setMeta({ page: tx.meta.page, total: tx.meta.total, limit: tx.meta.limit });
-      } catch (err) {
-        if (err instanceof ApiCallError) setError(err.message || "Failed to load finances");
-        else setError("Network error. Is the API server running?");
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
-    },
-    [rangeIdx, page],
-  );
-
-  useEffect(() => {
-    void load(true);
-  }, [load]);
-
-  const exportCsv = async () => {
-    setExporting(true);
-    try {
-      const res = await api.raw("/invoices/export.csv");
-      if (!res.ok) throw new Error("Export failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "finances.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed");
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-96 items-center justify-center text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
-  }
-
-  const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.limit)) : 1;
-
   return (
-    <div className="mt-2 flex flex-col gap-6 sm:mt-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Finances</h1>
-          <p className="text-sm text-muted-foreground">Network-wide revenue and transaction activity.</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            VoltCore finance
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Revenue Operations
+          </h1>
         </div>
         <button
           type="button"
-          onClick={() => void load(false)}
-          disabled={isRefreshing}
-          className="rounded-md border border-border p-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
-          aria-label="Refresh"
+          className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-foreground transition-colors hover:bg-muted/30"
         >
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          <Download className="h-4 w-4" strokeWidth={2} aria-hidden />
+          Export CSV
         </button>
-      </div>
+      </header>
 
-      {error && (
-        <div role="alert" className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <DollarSign size={100} />
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] uppercase">Total Revenue</h2>
-            <ArrowUpRight size={14} className="text-muted-foreground" />
-          </div>
-          <div className="text-3xl font-bold text-foreground">
-            {kpis ? formatMoney(kpis.totalRevenueCents, kpis.currency) : "—"}
-          </div>
-          {kpis && <DeltaLabel deltaPct={kpis.totalRevenueDeltaPct} suffix="vs last month" />}
-        </div>
-
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <CreditCard size={100} />
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] uppercase">Avg Transaction</h2>
-            <ArrowUpRight size={14} className="text-muted-foreground" />
-          </div>
-          <div className="text-3xl font-bold text-foreground">
-            {kpis ? formatMoney(kpis.avgTransactionCents, kpis.currency) : "—"}
-          </div>
-          {kpis && <DeltaLabel deltaPct={kpis.avgTransactionDeltaPct} suffix="vs last month" />}
-        </div>
-
-        <div className="p-6 bg-card border border-border rounded-xl relative overflow-hidden group">
-          <div className="absolute right-0 -bottom-4 opacity-[0.03] text-foreground group-hover:scale-110 transition-transform">
-            <Clock size={100} />
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-semibold text-muted-foreground tracking-[0.15em] uppercase">Pending Payouts</h2>
-            <div className="text-xs font-semibold text-muted-foreground border border-border rounded-full px-2 py-0.5">
-              Processing
+      <section className="grid gap-4 md:grid-cols-3">
+        {metricCards.map(({ label, value, delta, note, icon: Icon }) => (
+          <article
+            key={label}
+            className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                {label}
+              </p>
+              <Icon
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                strokeWidth={2}
+                aria-hidden
+              />
             </div>
-          </div>
-          <div className="text-3xl font-bold text-foreground">
-            {kpis ? formatMoney(kpis.pendingPayoutsCents, kpis.currency) : "—"}
-          </div>
-          {kpis && <DeltaLabel deltaPct={kpis.pendingPayoutsDeltaPct} suffix="vs last month" />}
-        </div>
-      </div>
+            <p className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              {value}
+            </p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-foreground" aria-hidden />
+              {delta}
+              <span className="font-medium text-muted-foreground">{note}</span>
+            </p>
+          </article>
+        ))}
+      </section>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.95fr)]">
+        <article className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-foreground mb-1">Revenue Performance</h2>
-              <p className="text-sm text-muted-foreground">Tracking transaction flow across the network.</p>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Revenue Performance
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Visualizing global transaction flow across the network.
+              </p>
             </div>
-            <div className="flex gap-1 shrink-0">
-              {RANGE_PRESET.map((r, i) => (
+            <div className="inline-flex w-fit rounded-lg border border-border bg-background p-1">
+              {["7D", "30D", "1Y"].map((item) => (
                 <button
-                  key={r.label}
-                  onClick={() => setRangeIdx(i)}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg border transition-colors ${
-                    i === rangeIdx
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                  key={item}
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${
+                    item === "30D"
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {r.label}
+                  {item}
                 </button>
               ))}
             </div>
           </div>
-          <div className="w-full h-32">
-            <RevenueChart points={revenue} />
-          </div>
-        </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-2">
+          <div className="mt-8 h-[260px] rounded-lg bg-muted/10 p-3">
+            <svg
+              className="h-full w-full overflow-visible"
+              viewBox="0 0 720 250"
+              role="img"
+              aria-label="Revenue line chart from October 1 to October 28"
+            >
+              <defs>
+                <linearGradient id="revenueFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.16" />
+                  <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {[50, 100, 150, 200].map((y) => (
+                <line
+                  key={y}
+                  x1="0"
+                  x2="720"
+                  y1={y}
+                  y2={y}
+                  className="stroke-border/70"
+                  strokeDasharray="4 10"
+                />
+              ))}
+              <path
+                d="M0 168 C70 145 110 166 150 164 C210 160 220 188 285 170 C360 149 390 83 455 88 C520 94 530 198 590 192 C654 185 685 143 720 83"
+                fill="none"
+                className="stroke-foreground"
+                strokeLinecap="round"
+                strokeWidth="3"
+              />
+              <path
+                d="M0 168 C70 145 110 166 150 164 C210 160 220 188 285 170 C360 149 390 83 455 88 C520 94 530 198 590 192 C654 185 685 143 720 83 L720 250 L0 250 Z"
+                className="fill-foreground"
+                opacity="0.06"
+              />
+              <circle cx="180" cy="166" r="4" className="fill-foreground" />
+              {[
+                ["01 OCT", 0],
+                ["07 OCT", 180],
+                ["14 OCT", 360],
+                ["21 OCT", 540],
+                ["28 OCT", 700],
+              ].map(([label, x]) => (
+                <text
+                  key={label}
+                  x={x}
+                  y="238"
+                  className="fill-muted-foreground text-[11px] font-bold"
+                >
+                  {label}
+                </text>
+              ))}
+            </svg>
+          </div>
+        </article>
+
+        <article className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-foreground mb-1">Volumetric Data</h2>
-              <p className="text-sm text-muted-foreground">Daily transaction counts (last 7 days).</p>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Volumetric Data
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Daily transaction counts.
+              </p>
             </div>
-            <button className="text-muted-foreground hover:text-foreground" aria-label="More">
-              <MoreHorizontal size={20} />
-            </button>
+            <BadgeDollarSign className="h-5 w-5 text-muted-foreground" aria-hidden />
           </div>
-          <div className="mt-4">
-            <VolumetricChart points={volume} />
-          </div>
-        </div>
-      </div>
 
-      {/* Transactions */}
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="mt-8 flex h-[260px] items-end gap-3 rounded-lg bg-muted/10 px-3 pb-4 pt-5">
+            {volumeBars.map((bar) => (
+              <div key={bar.day} className="flex min-w-0 flex-1 flex-col items-center gap-3">
+                <div className="flex h-44 w-full items-end">
+                  <div
+                    className="w-full rounded-t-sm bg-foreground/15 transition-colors first:bg-foreground/20 dark:bg-primary/20"
+                    style={{ height: `${bar.value}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                  {bar.day}
+                </span>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-border/80 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
-            <h2 className="text-xl font-bold text-foreground mb-1">Recent Transactions</h2>
-            <p className="text-sm text-muted-foreground">Real-time ledger of network activity.</p>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Recent Transactions
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Real-time ledger of network activity.
+            </p>
           </div>
           <button
             type="button"
-            onClick={() => void exportCsv()}
-            disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary text-foreground transition-colors shrink-0 disabled:opacity-60"
+            className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-foreground transition-colors hover:bg-muted/30"
           >
-            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             Export CSV
           </button>
         </div>
 
-        <div className="w-full overflow-x-auto rounded-lg">
-          <table className="w-full text-left text-sm whitespace-nowrap min-w-[600px]">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
-              <tr className="border-b border-border/50 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-                <th className="pb-4 font-bold">Transaction ID</th>
-                <th className="pb-4 font-bold">Station Location</th>
-                <th className="pb-4 font-bold">Status</th>
-                <th className="pb-4 font-bold">Method</th>
-                <th className="pb-4 text-right font-bold">Amount</th>
+              <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                <th className="px-6 py-4 font-bold">Transaction ID</th>
+                <th className="px-4 py-4 font-bold">Station Location</th>
+                <th className="px-4 py-4 font-bold">Status</th>
+                <th className="px-4 py-4 font-bold">Method</th>
+                <th className="px-6 py-4 text-right font-bold">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
-              {transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-muted-foreground">
-                    No transactions found.
+            <tbody className="divide-y divide-border/60">
+              {transactions.map((transaction) => (
+                <tr
+                  key={transaction.id}
+                  className="transition-colors hover:bg-muted/10"
+                >
+                  <td className="px-6 py-5 font-mono text-xs font-medium text-muted-foreground">
+                    {transaction.id}
+                  </td>
+                  <td className="px-4 py-5 font-medium text-foreground">
+                    {transaction.location}
+                  </td>
+                  <td className="px-4 py-5 text-xs">
+                    <StatusDot status={transaction.status} />
+                  </td>
+                  <td className="px-4 py-5 text-muted-foreground">
+                    {transaction.method}
+                  </td>
+                  <td className="px-6 py-5 text-right font-bold text-foreground">
+                    {transaction.amount}
                   </td>
                 </tr>
-              ) : (
-                transactions.map((t) => (
-                  <tr key={t.id} className="group hover:bg-muted/10 transition-colors">
-                    <td className="py-4 font-medium text-muted-foreground">{t.code}</td>
-                    <td className="py-4 text-foreground">{t.station}</td>
-                    <td className="py-4">
-                      <StatusBadge status={t.status} />
-                    </td>
-                    <td className="py-4 text-muted-foreground">{PAYMENT_LABEL[t.method] ?? t.method}</td>
-                    <td className="py-4 text-right font-bold text-foreground">
-                      {formatMoney(t.amount, t.currency)}
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground font-medium">
-          <span>{meta ? `Showing ${transactions.length} of ${meta.total.toLocaleString()} items` : "—"}</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 border border-border rounded-lg hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-40"
-            >
+        <footer className="flex flex-col gap-3 border-t border-border/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+            <Clock3 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+            Showing 5 of 24,010 items
+          </p>
+          <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+            <button type="button" className="transition-colors hover:text-foreground">
               Previous
             </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1.5 border border-border rounded-lg hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-40"
-            >
+            <button type="button" className="transition-colors hover:text-foreground">
               Next
             </button>
           </div>
-        </div>
-      </div>
+        </footer>
+      </section>
     </div>
   );
 }
