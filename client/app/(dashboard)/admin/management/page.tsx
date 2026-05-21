@@ -1,97 +1,158 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Download, MoreVertical } from "lucide-react";
+import { AlertCircle, Download, KeyRound, Loader2, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
 import { AddSupervisorDialog } from "@/components/AddSupervisorDialog";
 import { Select } from "@/components/ui/select";
+import { api, ApiCallError } from "@/lib/api";
+import type { Paginated, UserRow } from "@/lib/api-types";
+import { formatDate } from "@/lib/format";
 
-const supervisors = [
-  {
-    initials: "ER",
-    name: "Elena Rodriguez",
-    uid: "UID: VC-092-ER",
-    role: "Network Lead",
-    status: "active" as const,
-    region: "EMEA Central",
-    lastLogin: "2023.10.27 // 14:32:01",
-  },
-  {
-    initials: "TK",
-    name: "Takumi Kobayashi",
-    uid: "UID: VC-044-TK",
-    role: "Regional Admin",
-    status: "inactive" as const,
-    region: "APAC Hub",
-    lastLogin: "2023.10.25 // 09:15:44",
-  },
-  {
-    initials: "MS",
-    name: "Marcus Sterling",
-    uid: "UID: VC-118-MS",
-    role: "Fleet Manager",
-    status: "active" as const,
-    region: "North America",
-    lastLogin: "2023.10.27 // 16:55:12",
-  },
-  {
-    initials: "SJ",
-    name: "Sarah Jenkins",
-    uid: "UID: VC-201-SJ",
-    role: "System Security",
-    status: "active" as const,
-    region: "Global Hub",
-    lastLogin: "2023.10.27 // 17:01:29",
-  },
-];
+const STATUS_DOT: Record<UserRow["status"], string> = {
+  ACTIVE: "bg-emerald-500",
+  SUSPENDED: "bg-destructive",
+  INVITED: "bg-yellow-500",
+};
 
-function FilterField({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+const STATUS_LABEL: Record<UserRow["status"], string> = {
+  ACTIVE: "Active",
+  SUSPENDED: "Suspended",
+  INVITED: "Invited",
+};
+
+function FilterField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
-      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-        {label}
-      </label>
+      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{label}</label>
       {children}
     </div>
   );
 }
 
 export default function SupervisorManagementPage() {
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [regionFilter, setRegionFilter] = useState("global");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [activityFilter, setActivityFilter] = useState("any");
-  const totalCount = 128;
+  const [rows, setRows] = useState<UserRow[]>([]);
+  const [meta, setMeta] = useState<Paginated<UserRow>["meta"] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [roleFilter, setRoleFilter] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [activityFilter, setActivityFilter] = useState("");
+
+  const buildQuery = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("limit", "20");
+    if (roleFilter) params.set("role", roleFilter);
+    if (regionFilter) params.set("region", regionFilter);
+    if (statusFilter) params.set("status", statusFilter);
+    if (activityFilter) params.set("lastActivity", activityFilter);
+    return params.toString();
+  }, [page, roleFilter, regionFilter, statusFilter, activityFilter]);
+
+  const load = useCallback(
+    async (showSpinner: boolean) => {
+      if (showSpinner) setIsLoading(true);
+      else setIsRefreshing(true);
+      setError(null);
+      try {
+        const res = await api.get<Paginated<UserRow>>(`/users?${buildQuery()}`, { unwrap: false });
+        setRows(res.data);
+        setMeta(res.meta);
+      } catch (err) {
+        if (err instanceof ApiCallError) setError(err.message || "Failed to load users");
+        else setError("Network error. Is the API server running?");
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [buildQuery],
+  );
+
+  useEffect(() => {
+    void load(true);
+  }, [load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [roleFilter, regionFilter, statusFilter, activityFilter]);
+
+  const regions = Array.from(new Set(rows.map((r) => r.region).filter(Boolean))) as string[];
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const res = await api.raw(`/users/export.csv?${buildQuery()}`);
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "users.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const deleteUser = async (row: UserRow) => {
+    if (!confirm(`Delete ${row.name}? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/users/${row.id}`);
+      await load(false);
+    } catch (err) {
+      if (err instanceof ApiCallError) setError(err.message);
+    }
+  };
+
+  const resetPassword = async (row: UserRow) => {
+    try {
+      await api.post(`/users/${row.id}/reset-password`);
+      alert(`Sent password reset link to ${row.email}.`);
+    } catch (err) {
+      if (err instanceof ApiCallError) setError(err.message);
+    }
+  };
 
   const roleOptions = [
-    { label: "All Roles", value: "all" },
-    { label: "Network Lead", value: "lead" },
-    { label: "Regional Admin", value: "admin" },
+    { label: "All Roles", value: "" },
+    { label: "Admin", value: "ADMIN" },
+    { label: "Supervisor", value: "SUPERVISOR" },
+    { label: "User", value: "USER" },
   ];
 
   const regionOptions = [
-    { label: "Global View", value: "global" },
-    { label: "EMEA", value: "emea" },
-    { label: "APAC", value: "apac" },
+    { label: "All regions", value: "" },
+    ...regions.map((r) => ({ label: r, value: r })),
   ];
 
   const statusOptions = [
-    { label: "All Statuses", value: "all" },
-    { label: "Active", value: "active" },
-    { label: "Inactive", value: "inactive" },
+    { label: "All Statuses", value: "" },
+    { label: "Active", value: "ACTIVE" },
+    { label: "Suspended", value: "SUSPENDED" },
+    { label: "Invited", value: "INVITED" },
   ];
 
   const activityOptions = [
-    { label: "Any Time", value: "any" },
+    { label: "Any Time", value: "" },
     { label: "Last 24 hours", value: "24h" },
     { label: "Last 7 days", value: "7d" },
+    { label: "Last 30 days", value: "30d" },
   ];
+
+  const totalPages = meta?.totalPages ?? 1;
+  const pagesToShow = pageRange(page, totalPages);
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,12 +168,23 @@ export default function SupervisorManagementPage() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-transparent px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-foreground transition-colors hover:bg-muted/30"
+            onClick={() => void load(false)}
+            disabled={isRefreshing}
+            aria-label="Refresh"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-transparent text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground disabled:opacity-50"
           >
-            <Download className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportCsv()}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-transparent px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-foreground transition-colors hover:bg-muted/30 disabled:opacity-60"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" strokeWidth={2} />}
             Export CSV
           </button>
-          <AddSupervisorDialog />
+          <AddSupervisorDialog regions={regions} onCreated={() => load(false)} />
         </div>
       </header>
 
@@ -155,6 +227,13 @@ export default function SupervisorManagementPage() {
         </FilterField>
       </section>
 
+      {error && (
+        <div role="alert" className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="w-full overflow-x-auto">
           <table className="w-full min-w-200 text-left text-sm">
@@ -169,94 +248,73 @@ export default function SupervisorManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {supervisors.map((row) => (
-                <tr key={row.uid} className="group transition-colors hover:bg-muted/10">
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/80 bg-muted/20 text-xs font-bold text-foreground">
-                        {row.initials}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-foreground">{row.name}</div>
-                        <div className="text-xs text-muted-foreground">{row.uid}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-5 text-foreground">{row.role}</td>
-                  <td className="px-4 py-5">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={
-                          row.status === "active"
-                            ? "h-2 w-2 shrink-0 rounded-full bg-emerald-500"
-                            : "h-2 w-2 shrink-0 rounded-full bg-muted-foreground/50"
-                        }
-                        aria-hidden
-                      />
-                      <span
-                        className={
-                          row.status === "active"
-                            ? "text-xs font-semibold uppercase tracking-wide text-foreground"
-                            : "text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                        }
-                      >
-                        {row.status === "active" ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-5 text-foreground">{row.region}</td>
-                  <td className="px-4 py-5 font-mono text-xs text-muted-foreground">{row.lastLogin}</td>
-                  <td className="px-4 py-5 text-right">
-                    <button
-                      type="button"
-                      className="inline-flex rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                      aria-label={`Actions for ${row.name}`}
-                    >
-                      <MoreVertical className="h-4 w-4" strokeWidth={2} aria-hidden />
-                    </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                   </td>
                 </tr>
-              ))}
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center text-muted-foreground">
+                    No users match these filters.
+                  </td>
+                </tr>
+              ) : (
+                rows.map((row) => (
+                  <UserTableRow
+                    key={row.id}
+                    row={row}
+                    onResetPassword={resetPassword}
+                    onDelete={deleteUser}
+                  />
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         <footer className="flex flex-col gap-4 border-t border-border/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing <span className="font-medium text-foreground">{supervisors.length}</span> of{" "}
-            <span className="font-medium text-foreground">{totalCount}</span> supervisors
+            {meta ? (
+              <>
+                Showing <span className="font-medium text-foreground">{rows.length}</span> of{" "}
+                <span className="font-medium text-foreground">{meta.total}</span> users
+              </>
+            ) : (
+              "—"
+            )}
           </p>
           <nav className="flex items-center gap-2" aria-label="Pagination">
             <button
               type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground disabled:opacity-40"
-              disabled
               aria-label="Previous page"
             >
               ‹
             </button>
+            {pagesToShow.map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setPage(n)}
+                aria-current={n === page ? "page" : undefined}
+                className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-xs font-bold ${
+                  n === page
+                    ? "bg-foreground text-background"
+                    : "border border-border text-foreground transition-colors hover:bg-muted/30"
+                }`}
+              >
+                {String(n).padStart(2, "0")}
+              </button>
+            ))}
             <button
               type="button"
-              className="flex h-9 min-w-9 items-center justify-center rounded-lg bg-foreground px-3 text-xs font-bold text-background"
-              aria-current="page"
-            >
-              01
-            </button>
-            <button
-              type="button"
-              className="flex h-9 min-w-9 items-center justify-center rounded-lg border border-border text-xs font-bold text-foreground transition-colors hover:bg-muted/30"
-            >
-              02
-            </button>
-            <button
-              type="button"
-              className="flex h-9 min-w-9 items-center justify-center rounded-lg border border-border text-xs font-bold text-foreground transition-colors hover:bg-muted/30"
-            >
-              03
-            </button>
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground disabled:opacity-40"
               aria-label="Next page"
             >
               ›
@@ -265,5 +323,102 @@ export default function SupervisorManagementPage() {
         </footer>
       </section>
     </div>
+  );
+}
+
+function pageRange(current: number, total: number): number[] {
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  const start = Math.max(1, Math.min(total - 4, current - 2));
+  return Array.from({ length: 5 }, (_, i) => start + i);
+}
+
+function UserTableRow({
+  row,
+  onResetPassword,
+  onDelete,
+}: {
+  row: UserRow;
+  onResetPassword: (row: UserRow) => Promise<void>;
+  onDelete: (row: UserRow) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  return (
+    <tr className="group transition-colors hover:bg-muted/10">
+      <td className="px-6 py-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/80 bg-muted/20 text-xs font-bold text-foreground">
+            {row.initials}
+          </span>
+          <div className="min-w-0">
+            <div className="font-semibold text-foreground">{row.name}</div>
+            <div className="text-xs text-muted-foreground">{row.uid} · {row.email}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-5 text-foreground">{row.role}</td>
+      <td className="px-4 py-5">
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[row.status]}`} aria-hidden />
+          <span className="text-xs font-semibold uppercase tracking-wide text-foreground">
+            {STATUS_LABEL[row.status]}
+          </span>
+        </div>
+      </td>
+      <td className="px-4 py-5 text-foreground">{row.region ?? "—"}</td>
+      <td className="px-4 py-5 font-mono text-xs text-muted-foreground">
+        {row.lastLogin ? formatDate(row.lastLogin) : "Never"}
+      </td>
+      <td className="px-4 py-5 text-right">
+        <div ref={ref} className="relative inline-block">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            aria-label={`Actions for ${row.name}`}
+            aria-haspopup="menu"
+            aria-expanded={open}
+          >
+            <MoreVertical className="h-4 w-4" strokeWidth={2} aria-hidden />
+          </button>
+          {open && (
+            <div role="menu" className="absolute right-0 top-10 z-20 w-56 overflow-hidden rounded-xl border border-border bg-background text-left shadow-xl">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  void onResetPassword(row);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition hover:bg-muted/60"
+              >
+                <KeyRound className="h-4 w-4" /> Send password reset
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  void onDelete(row);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-destructive transition hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" /> Delete user
+              </button>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }
