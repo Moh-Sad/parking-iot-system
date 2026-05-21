@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve("."),
   },
+  // Disable static generation for dynamic routes
+  staticPageGenerationTimeout: 60,
+  // Ensure proper build output
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
 };
 
 export default withNextVideo(nextConfig);
+
