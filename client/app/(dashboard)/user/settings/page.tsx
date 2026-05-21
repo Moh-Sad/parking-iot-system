@@ -379,7 +379,7 @@ export default function UserSettingsPage() {
             <div className="space-y-6 sm:space-y-8">
               <ToggleRow
                 label="Wallet Auto-Refill"
-                description={`Auto top up your wallet when balance falls below ${wallet ? `$${(wallet.autoRefillThresholdCents / 100).toFixed(2)}` : "—"}.`}
+                description={`Auto top up your wallet when balance falls below ${wallet ? `ETB ${(wallet.autoRefillThresholdCents / 100).toFixed(2)}` : "—"}.`}
                 value={autoRefillEnabled}
                 onChange={setAutoRefillEnabled}
                 disabled={saving}
