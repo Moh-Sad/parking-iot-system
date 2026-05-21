@@ -16,14 +16,6 @@ export function buildApp() {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
-  // debug — write to file
-  app.use((req, _res, next) => {
-    import('node:fs').then(fs => {
-      fs.appendFileSync('/tmp/dbg.log', `[DBG] origin=${req.headers.origin} url=${req.url}\n`);
-    });
-    next();
-  });
-
   app.use(helmet());
 
   // CORS: support a comma-separated list, or "*" to reflect any origin.
