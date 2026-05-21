@@ -17,9 +17,19 @@ export function buildApp() {
   app.set('trust proxy', 1);
 
   app.use(helmet());
+
+  // CORS: support a comma-separated list, or "*" to reflect any origin.
+  // (Reflect-the-origin is required when credentials:true — a literal "*" header
+  // is rejected by browsers in that mode.)
+  const corsOriginRaw = env.CORS_ORIGIN.trim();
+  const allowAll = corsOriginRaw === '*';
+  const allowList = corsOriginRaw.split(',').map((s) => s.trim()).filter(Boolean);
+
   app.use(
     cors({
-      origin: env.CORS_ORIGIN.split(',').map((s) => s.trim()),
+      origin: allowAll
+        ? (_origin, cb) => cb(null, true) // reflect whatever the browser sent
+        : allowList,
       credentials: true,
     }),
   );
