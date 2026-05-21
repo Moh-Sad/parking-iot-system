@@ -104,6 +104,7 @@ model User {
   roleLevel           Int        @default(4)
   status              UserStatus @default(ACTIVE)
   region              String?
+  phone               String?
   uid                 String     @unique
   avatarUrl           String?
   mustCompleteProfile Boolean    @default(false)

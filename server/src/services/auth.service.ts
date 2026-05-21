@@ -6,6 +6,8 @@ import { env } from '../config/env.js';
 import { writeAudit } from './audit.service.js';
 import { sendMail, passwordRecoveryEmail } from '../lib/mailer.js';
 import { AUDIT_COMPONENTS, PASSWORD_RESET_TTL_MS } from '../config/constants.js';
+import { userUid } from '../lib/uid.js';
+import { CarType, Role } from '@prisma/client';
 
 interface LoginResult {
   token: string;
@@ -221,3 +223,95 @@ export async function changePassword(userId: string, currentPassword: string, ne
     userId,
   });
 }
+
+interface RegisterInput {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  plateNumber?: string;
+}
+
+export async function register(input: RegisterInput, meta?: { ip?: string; userAgent?: string }): Promise<LoginResult> {
+  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  if (existing) throw ApiError.conflict('An account with this email already exists');
+
+  const passwordHash = await hashPassword(input.password);
+
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: {
+        email: input.email,
+        passwordHash,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        phone: input.phone,
+        role: Role.USER,
+        roleLevel: 1,
+        uid: userUid(),
+        mustCompleteProfile: false,
+        lastLoginAt: new Date(),
+      },
+    });
+
+    await tx.wallet.create({
+      data: { userId: created.id, balanceCents: 0, currency: 'USD' },
+    });
+
+    if (input.plateNumber) {
+      await tx.vehicle.create({
+        data: {
+          plateNumber: input.plateNumber.toUpperCase(),
+          driverName: [input.firstName, input.lastName].filter(Boolean).join(' ') || input.email,
+          carType: CarType.EV,
+          ownerId: created.id,
+        },
+      }).catch(() => undefined); // Don't fail registration if plate is taken
+    }
+
+    return created;
+  });
+
+  // Issue tokens (mirrors login)
+  const token = signAccess({ sub: user.id, role: user.role, roleLevel: user.roleLevel });
+  const refreshPlain = randomOpaque(32);
+  const refreshHash = sha256(refreshPlain);
+  const expiresAt = new Date(Date.now() + ttlToMs(env.JWT_REFRESH_TTL));
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: refreshHash,
+      expiresAt,
+      userAgent: meta?.userAgent,
+      ip: meta?.ip,
+    },
+  });
+
+  await writeAudit({
+    component: AUDIT_COMPONENTS.AUTH,
+    action: 'register.success',
+    userId: user.id,
+    details: { ip: meta?.ip, hasPlate: !!input.plateNumber },
+  });
+
+  return {
+    token,
+    refreshToken: refreshPlain,
+    role: user.role,
+    mustCompleteProfile: false,
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      roleLevel: user.roleLevel,
+      region: user.region,
+      uid: user.uid,
+      avatarUrl: user.avatarUrl,
+    },
+  };
+}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _refUserUid = userUid;

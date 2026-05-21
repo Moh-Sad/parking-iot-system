@@ -10,6 +10,7 @@ import {
   recoveryBody,
   resetBody,
   completeAccessBody,
+  registerBody,
 } from '../schemas/auth.schema.js';
 import * as auth from '../services/auth.service.js';
 import { ok, noContent } from '../utils/http.js';
@@ -89,6 +90,27 @@ router.post(
     };
     await auth.completeAccess(req.user.id, firstName, lastName, password);
     return ok(res, { ok: true });
+  }),
+);
+
+router.post(
+  '/register',
+  authLoginLimiter,
+  validate(registerBody),
+  asyncHandler(async (req, res) => {
+    const body = req.body as {
+      email: string;
+      password: string;
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      plateNumber?: string;
+    };
+    const result = await auth.register(body, {
+      ip: req.ip,
+      userAgent: req.header('user-agent') ?? undefined,
+    });
+    return ok(res, result);
   }),
 );
 

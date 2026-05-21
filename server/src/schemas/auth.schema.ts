@@ -28,3 +28,12 @@ export const resetBody = z.object({
   token: z.string().min(1),
   password: z.string().min(8).max(128),
 });
+
+export const registerBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  firstName: z.string().min(1).max(80).optional(),
+  lastName: z.string().min(1).max(80).optional(),
+  phone: z.string().min(3).max(40).optional(),
+  plateNumber: z.string().min(1).max(20).optional(),
+});

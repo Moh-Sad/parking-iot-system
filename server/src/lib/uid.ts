@@ -17,6 +17,10 @@ export function adminUid(): string {
   return `ADM-${randomCode(6)}`;
 }
 
+export function userUid(): string {
+  return `USR-${randomCode(6)}`;
+}
+
 export function transactionCode(): string {
   return `TXN-${randomCode(5)}-${randomCode(3)}`;
 }
