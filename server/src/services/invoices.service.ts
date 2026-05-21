@@ -104,7 +104,7 @@ export async function createInvoice(input: CreateInvoiceInput) {
       subtotalCents: subtotal,
       taxCents: tax,
       grandTotalCents: grand,
-      currency: input.currency ?? 'USD',
+      currency: input.currency ?? 'ETB',
       notes: input.notes,
       lineItems: {
         create: input.lineItems.map((li, idx) => ({ ...li, sortOrder: idx })),

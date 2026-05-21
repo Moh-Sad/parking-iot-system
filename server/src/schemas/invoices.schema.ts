@@ -26,7 +26,7 @@ export const createInvoiceBody = z.object({
   billTo: z.object({ name: z.string().min(1), address: z.array(z.string()).max(8) }),
   lineItems: z.array(lineItem).min(1),
   taxCents: z.number().int().min(0).default(0),
-  currency: z.string().length(3).default('USD'),
+  currency: z.string().length(3).default('ETB'),
   notes: z.string().max(500).optional(),
 });
 

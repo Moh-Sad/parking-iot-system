@@ -7,7 +7,7 @@ export const featuresSchema = z.object({
 });
 
 export const localizationSchema = z.object({
-  currency: z.enum(['USD', 'EUR', 'GBP']),
+  currency: z.enum(['ETB', 'EUR', 'GBP']),
   timezone: z.enum(['UTC', 'EST', 'CET']),
   measurement: z.enum(['METRIC', 'IMPERIAL']),
 });

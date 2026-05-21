@@ -257,7 +257,7 @@ export async function register(input: RegisterInput, meta?: { ip?: string; userA
     });
 
     await tx.wallet.create({
-      data: { userId: created.id, balanceCents: 0, currency: 'USD' },
+      data: { userId: created.id, balanceCents: 0, currency: 'ETB' },
     });
 
     let createdVehicleId: string | null = null;

@@ -360,7 +360,7 @@ export default function SupervisorDashboardPage() {
                           )}
                           {row.totalCostCents != null && (
                             <span className="px-2 py-0.5 rounded bg-muted/50 text-[10px] border border-border font-medium">
-                              {formatMoney(row.totalCostCents, "USD")}
+                              {formatMoney(row.totalCostCents, "ETB")}
                             </span>
                           )}
                         </div>

@@ -106,7 +106,7 @@ export function TopUpDialog({ trigger, onSuccess }: TopUpDialogProps) {
                   <p className="mt-1 text-sm text-muted-foreground">
                     New wallet balance:{" "}
                     <span className="font-semibold text-foreground">
-                      {formatMoney(success.newBalanceCents, "USD")}
+                      {formatMoney(success.newBalanceCents, "ETB")}
                     </span>
                   </p>
                 </div>
@@ -221,7 +221,7 @@ export function TopUpDialog({ trigger, onSuccess }: TopUpDialogProps) {
                 ) : (
                   <>
                     <CreditCard className="mr-2 h-4 w-4" />
-                    Add {formatMoney(amountCents, "USD")}
+                    Add {formatMoney(amountCents, "ETB")}
                   </>
                 )}
               </Button>

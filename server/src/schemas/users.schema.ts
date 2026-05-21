@@ -29,7 +29,7 @@ export const updateUserBody = z.object({
 
 const preferencesSchema = z
   .object({
-    currency: z.enum(['USD', 'EUR', 'GBP']).optional(),
+    currency: z.enum(['ETB', 'EUR', 'GBP']).optional(),
     timezone: z.string().min(1).max(40).optional(),
     measurement: z.enum(['METRIC', 'IMPERIAL']).optional(),
     notifications: z
