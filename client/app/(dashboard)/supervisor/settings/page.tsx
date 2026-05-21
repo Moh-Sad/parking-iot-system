@@ -8,7 +8,7 @@ import { api, ApiCallError } from "@/lib/api";
 
 interface SettingsShape {
   features: { loadBalancing: boolean; telemetry: boolean; thermalMonitoring: boolean };
-  localization: { currency: "USD" | "EUR" | "GBP"; timezone: "UTC" | "EST" | "CET"; measurement: "METRIC" | "IMPERIAL" };
+  localization: { currency: "ETB" | "EUR" | "GBP"; timezone: "UTC" | "EST" | "CET"; measurement: "METRIC" | "IMPERIAL" };
   authentication: { apiGateway: boolean; networkSecret: string };
   hardware: { cpuLoadThreshold: number; storage: number };
   updatedAt: string;
@@ -244,7 +244,7 @@ export default function SupervisorSettingsPage() {
                   onValueChange={() => undefined}
                   className="h-10 opacity-70 pointer-events-none"
                   options={[
-                    { label: "USD ($)", value: "USD" },
+                    { label: "ETB", value: "ETB" },
                     { label: "EUR (€)", value: "EUR" },
                     { label: "GBP (£)", value: "GBP" },
                   ]}

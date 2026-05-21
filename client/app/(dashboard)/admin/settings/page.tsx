@@ -13,7 +13,7 @@ interface SettingsShape {
     thermalMonitoring: boolean;
   };
   localization: {
-    currency: "USD" | "EUR" | "GBP";
+    currency: "ETB" | "EUR" | "GBP";
     timezone: "UTC" | "EST" | "CET";
     measurement: "METRIC" | "IMPERIAL";
   };
@@ -222,7 +222,7 @@ export default function SettingsPage() {
                   onValueChange={(v) => update("localization", { currency: v as SettingsShape["localization"]["currency"] })}
                   className="h-10"
                   options={[
-                    { label: "USD ($)", value: "USD" },
+                    { label: "ETB", value: "ETB" },
                     { label: "EUR (€)", value: "EUR" },
                     { label: "GBP (£)", value: "GBP" },
                   ]}

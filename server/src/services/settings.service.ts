@@ -6,7 +6,7 @@ import { AUDIT_COMPONENTS } from '../config/constants.js';
 
 const DEFAULT_SETTINGS = {
   features: { loadBalancing: true, telemetry: true, thermalMonitoring: true },
-  localization: { currency: 'USD', timezone: 'UTC', measurement: 'METRIC' },
+  localization: { currency: 'ETB', timezone: 'UTC', measurement: 'METRIC' },
   authentication: { apiGateway: true, networkSecret: randomOpaque(16) },
   hardware: { cpuLoadThreshold: 80, storage: 84 },
 };

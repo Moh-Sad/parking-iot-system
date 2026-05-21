@@ -32,7 +32,7 @@ export async function stats(actor: Actor) {
   return {
     totalStations,
     activeSessions,
-    revenue: { totalCents, currency: 'USD', dailyAvgCents: Math.round(totalCents / 30), deltaPct: 0 },
+    revenue: { totalCents, currency: 'ETB', dailyAvgCents: Math.round(totalCents / 30), deltaPct: 0 },
     activeUsers,
     deltas: { stationsPct: 0, sessionsPct: 0, revenuePct: 0, usersPct: 0 },
   };

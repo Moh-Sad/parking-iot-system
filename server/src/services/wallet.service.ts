@@ -16,7 +16,7 @@ interface WalletDto {
 async function ensureWallet(userId: string): Promise<Wallet> {
   let wallet = await prisma.wallet.findUnique({ where: { userId } });
   if (!wallet) {
-    wallet = await prisma.wallet.create({ data: { userId, balanceCents: 0, currency: 'USD' } });
+    wallet = await prisma.wallet.create({ data: { userId, balanceCents: 0, currency: 'ETB' } });
   }
   return wallet;
 }

@@ -46,7 +46,7 @@ interface MeDto {
 }
 
 interface Preferences {
-  currency?: "USD" | "EUR" | "GBP";
+  currency?: "ETB" | "EUR" | "GBP";
   timezone?: string;
   measurement?: "METRIC" | "IMPERIAL";
   notifications?: {
@@ -68,7 +68,7 @@ interface VehicleDto {
 const DEFAULT_PREFS: Required<Pick<Preferences, "currency" | "timezone" | "measurement">> & {
   notifications: Required<NonNullable<Preferences["notifications"]>>;
 } = {
-  currency: "USD",
+  currency: "ETB",
   timezone: "UTC",
   measurement: "METRIC",
   notifications: { chargeAlerts: true, balanceWarnings: true, receiptEmails: false },
@@ -395,7 +395,7 @@ export default function UserSettingsPage() {
               />
               <ToggleRow
                 label="Low Balance Warnings"
-                description="Alert when your wallet drops below $10."
+                description="Alert when your wallet drops below ETB 10."
                 value={prefs.notifications.balanceWarnings}
                 onChange={(v) =>
                   setPrefs({ ...prefs, notifications: { ...prefs.notifications, balanceWarnings: v } })
@@ -465,10 +465,10 @@ export default function UserSettingsPage() {
                 </label>
                 <Select
                   value={prefs.currency}
-                  onValueChange={(v) => setPrefs({ ...prefs, currency: v as "USD" | "EUR" | "GBP" })}
+                  onValueChange={(v) => setPrefs({ ...prefs, currency: v as "ETB" | "EUR" | "GBP" })}
                   className="h-10"
                   options={[
-                    { label: "USD ($)", value: "USD" },
+                    { label: "ETB", value: "ETB" },
                     { label: "EUR (€)", value: "EUR" },
                     { label: "GBP (£)", value: "GBP" },
                   ]}

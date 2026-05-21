@@ -35,7 +35,7 @@ export async function getSummary(userId: string): Promise<SummaryDto> {
     pendingBalanceCents: pendingTotal,
     unpaidInvoiceCount: pending.length,
     availableCreditsCents: wallet?.balanceCents ?? 0,
-    currency: 'USD',
+    currency: 'ETB',
   };
 }
 
