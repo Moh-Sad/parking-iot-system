@@ -460,6 +460,32 @@ async function main() {
     });
   }
 
+  // --- IoT simulation station with 10 slots: 1–4 EV (CHARGE_AND_PARK), 5–10 parking ---
+  const iotStation = await prisma.station.upsert({
+    where: { code: 'IOT-SIM-01' },
+    update: {},
+    create: {
+      code: 'IOT-SIM-01',
+      name: 'IoT Simulation Lot',
+      region: 'Addis Ababa',
+      address: 'Proteus Bench',
+    },
+  });
+
+  for (let n = 1; n <= 10; n++) {
+    await prisma.slot.upsert({
+      where: { stationId_slotNumber: { stationId: iotStation.id, slotNumber: n } },
+      update: {},
+      create: {
+        stationId: iotStation.id,
+        slotNumber: n,
+        displayId: `IOT-${n.toString().padStart(2, '0')}`,
+        kind: n <= 4 ? SlotKind.CHARGE_AND_PARK : SlotKind.PARKING_ONLY,
+        isActive: true,
+      },
+    });
+  }
+
   // --- Metrics snapshot ---
   await prisma.systemMetricsSnapshot.create({
     data: {

@@ -23,6 +23,14 @@ const schema = z.object({
 
   SEED_ADMIN_EMAIL: z.string().email().default('admin@parking-iot.local'),
   SEED_ADMIN_PASSWORD: z.string().min(8).default('Admin123!'),
+
+  CHAPA_BASE_URL: z.string().default('https://api.chapa.co/v1'),
+  CHAPA_SECRET_KEY: z.string().optional().default(''),
+  CHAPA_WEBHOOK_SECRET: z.string().optional().default(''),
+  CHAPA_CALLBACK_URL: z.string().default('http://localhost:4000/api/v1/iot/payments/chapa/webhook'),
+  CHAPA_RETURN_URL: z.string().default('http://localhost:3000/payment/return'),
+
+  IOT_RELAY_BASE_URL: z.string().default('http://localhost:3001'),
 });
 
 const parsed = schema.safeParse(process.env);

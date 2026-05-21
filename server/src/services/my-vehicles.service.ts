@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
 import { CarType } from '@prisma/client';
+import { issueCardForVehicle } from './cards.service.js';
 
 interface CreateInput {
   plateNumber: string;
@@ -26,6 +27,7 @@ export async function listMyVehicles(userId: string) {
       carType: true,
       model: true,
       notes: true,
+      cardNumber: true,
       createdAt: true,
     },
   });
@@ -39,7 +41,7 @@ export async function createMyVehicle(userId: string, input: CreateInput) {
   const existing = await prisma.vehicle.findUnique({ where: { plateNumber: plate } });
   if (existing) throw ApiError.conflict('That plate number is already registered');
 
-  return prisma.vehicle.create({
+  const vehicle = await prisma.vehicle.create({
     data: {
       plateNumber: plate,
       driverName: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email,
@@ -48,6 +50,12 @@ export async function createMyVehicle(userId: string, input: CreateInput) {
       notes: input.notes,
       ownerId: userId,
     },
+  });
+
+  await issueCardForVehicle(vehicle.id).catch(() => undefined);
+
+  return prisma.vehicle.findUniqueOrThrow({
+    where: { id: vehicle.id },
     select: {
       id: true,
       plateNumber: true,
@@ -55,6 +63,7 @@ export async function createMyVehicle(userId: string, input: CreateInput) {
       carType: true,
       model: true,
       notes: true,
+      cardNumber: true,
       createdAt: true,
     },
   });
@@ -78,6 +87,7 @@ export async function updateMyVehicle(userId: string, id: string, patch: UpdateI
       carType: true,
       model: true,
       notes: true,
+      cardNumber: true,
       createdAt: true,
     },
   });

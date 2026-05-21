@@ -8,6 +8,8 @@ export const PAGINATION = {
 
 export const PASSWORD_RESET_TTL_MS = 24 * 60 * 60 * 1000;
 
+export const IOT_STATION_CODE = 'IOT-SIM-01';
+
 export const AUDIT_COMPONENTS = {
   AUTH: 'Auth',
   USERS: 'Users',

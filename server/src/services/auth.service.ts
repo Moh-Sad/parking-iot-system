@@ -7,6 +7,7 @@ import { writeAudit } from './audit.service.js';
 import { sendMail, passwordRecoveryEmail } from '../lib/mailer.js';
 import { AUDIT_COMPONENTS, PASSWORD_RESET_TTL_MS } from '../config/constants.js';
 import { userUid } from '../lib/uid.js';
+import { issueCardForVehicle } from './cards.service.js';
 import { CarType, Role } from '@prisma/client';
 
 interface LoginResult {
@@ -239,7 +240,7 @@ export async function register(input: RegisterInput, meta?: { ip?: string; userA
 
   const passwordHash = await hashPassword(input.password);
 
-  const user = await prisma.$transaction(async (tx) => {
+  const { user, vehicleId } = await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {
         email: input.email,
@@ -259,19 +260,25 @@ export async function register(input: RegisterInput, meta?: { ip?: string; userA
       data: { userId: created.id, balanceCents: 0, currency: 'USD' },
     });
 
+    let createdVehicleId: string | null = null;
     if (input.plateNumber) {
-      await tx.vehicle.create({
+      const v = await tx.vehicle.create({
         data: {
           plateNumber: input.plateNumber.toUpperCase(),
           driverName: [input.firstName, input.lastName].filter(Boolean).join(' ') || input.email,
           carType: CarType.EV,
           ownerId: created.id,
         },
-      }).catch(() => undefined); // Don't fail registration if plate is taken
+      }).catch(() => null); // Don't fail registration if plate is taken
+      if (v) createdVehicleId = v.id;
     }
 
-    return created;
+    return { user: created, vehicleId: createdVehicleId };
   });
+
+  if (vehicleId) {
+    await issueCardForVehicle(vehicleId).catch(() => undefined);
+  }
 
   // Issue tokens (mirrors login)
   const token = signAccess({ sub: user.id, role: user.role, roleLevel: user.roleLevel });

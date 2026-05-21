@@ -29,6 +29,10 @@ export function invoiceCode(year = new Date().getFullYear()): string {
   return `INV-${year}-${randomCode(4)}`;
 }
 
+export function generateCardNumber4(): string {
+  return Math.floor(Math.random() * 10_000).toString().padStart(4, '0');
+}
+
 export function initialsOf(firstName?: string | null, lastName?: string | null, fallback?: string): string {
   const a = (firstName ?? '').trim();
   const b = (lastName ?? '').trim();

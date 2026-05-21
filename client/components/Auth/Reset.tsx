@@ -2,12 +2,26 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api, ApiCallError } from "@/lib/api";
 
 export default function Reset() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" aria-label="Loading" />
+        </main>
+      }
+    >
+      <ResetInner />
+    </Suspense>
+  );
+}
+
+function ResetInner() {
   const router = useRouter();
   const params = useSearchParams();
   const token = params.get("token") ?? "";

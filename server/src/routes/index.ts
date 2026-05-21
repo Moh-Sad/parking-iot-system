@@ -20,6 +20,7 @@ import myFinancesRoutes from './my-finances.routes.js';
 import myPaymentMethodsRoutes from './my-payment-methods.routes.js';
 import myVehiclesRoutes from './my-vehicles.routes.js';
 import financesRoutes from './finances.routes.js';
+import iotRoutes from './iot.routes.js';
 
 export const apiRouter = Router();
 
@@ -44,3 +45,4 @@ apiRouter.use('/notifications', notificationsRoutes);
 apiRouter.use('/dashboard', dashboardRoutes);
 apiRouter.use('/search', searchRoutes);
 apiRouter.use('/health', healthRoutes);
+apiRouter.use('/iot', iotRoutes);
