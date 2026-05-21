@@ -16,6 +16,14 @@ export function buildApp() {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
+  // debug — write to file
+  app.use((req, _res, next) => {
+    import('node:fs').then(fs => {
+      fs.appendFileSync('/tmp/dbg.log', `[DBG] origin=${req.headers.origin} url=${req.url}\n`);
+    });
+    next();
+  });
+
   app.use(helmet());
 
   // CORS: support a comma-separated list, or "*" to reflect any origin.
@@ -27,9 +35,9 @@ export function buildApp() {
 
   app.use(
     cors({
-      origin: allowAll
-        ? (_origin, cb) => cb(null, true) // reflect whatever the browser sent
-        : allowList,
+      // `origin: true` tells cors to reflect the request's Origin header back.
+      // This is the only way to support "any origin" together with credentials:true.
+      origin: allowAll ? true : allowList,
       credentials: true,
     }),
   );
