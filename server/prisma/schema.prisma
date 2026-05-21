@@ -281,7 +281,7 @@ model Transaction {
   stationId    String
   assignmentId String?
   amountCents  Int
-  currency     String            @default("USD")
+  currency     String            @default("ETB")
   method       PaymentMethod
   status       TransactionStatus @default(COMPLETED)
   processedAt  DateTime          @default(now())
@@ -309,7 +309,7 @@ model Invoice {
   subtotalCents   Int
   taxCents        Int
   grandTotalCents Int
-  currency        String        @default("USD")
+  currency        String        @default("ETB")
   notes           String?
   paidAt          DateTime?
   createdAt       DateTime      @default(now())
@@ -410,10 +410,10 @@ model Wallet {
   id                       String   @id @default(cuid())
   userId                   String   @unique
   balanceCents             Int      @default(0)
-  currency                 String   @default("USD")
+  currency                 String   @default("ETB")
   autoRefillEnabled        Boolean  @default(false)
-  autoRefillThresholdCents Int      @default(5000)  // $50
-  autoRefillAmountCents    Int      @default(10000) // $100
+  autoRefillThresholdCents Int      @default(5000)  // ETB 50
+  autoRefillAmountCents    Int      @default(10000) // ETB 100
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 

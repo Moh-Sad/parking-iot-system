@@ -73,7 +73,7 @@ export async function getKpis(): Promise<KpisDto> {
     avgTransactionDeltaPct: Math.round(avgTransactionDeltaPct * 10) / 10,
     pendingPayoutsCents,
     pendingPayoutsDeltaPct: 0,
-    currency: 'USD',
+    currency: 'ETB',
   };
 }
 

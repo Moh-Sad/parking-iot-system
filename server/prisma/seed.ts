@@ -182,7 +182,7 @@ async function main() {
     data: {
       userId: customer.id,
       balanceCents: 45280, // $452.80
-      currency: 'USD',
+      currency: 'ETB',
       autoRefillEnabled: true,
       autoRefillThresholdCents: 5000,
       autoRefillAmountCents: 10000,
@@ -374,7 +374,7 @@ async function main() {
         subtotalCents: subtotal,
         taxCents: tax,
         grandTotalCents: subtotal + tax,
-        currency: 'USD',
+        currency: 'ETB',
         lineItems: { create: lineItems.map((li, idx) => ({ ...li, sortOrder: idx })) },
       },
     });
@@ -408,7 +408,7 @@ async function main() {
         subtotalCents: subtotal,
         taxCents: 0,
         grandTotalCents: subtotal,
-        currency: 'USD',
+        currency: 'ETB',
         lineItems: {
           create: [
             { label: 'kWh Consumption', description: `Node: ${station.code}`, totalCents: itemEnergy, sortOrder: 0 },
@@ -440,7 +440,7 @@ async function main() {
     create: {
       id: 1,
       features: { loadBalancing: true, telemetry: true, thermalMonitoring: true },
-      localization: { currency: 'USD', timezone: 'UTC', measurement: 'METRIC' },
+      localization: { currency: 'ETB', timezone: 'UTC', measurement: 'METRIC' },
       authentication: { apiGateway: true, networkSecret: 'INITIAL-SEED-SECRET-CHANGE-ME' },
       hardware: { cpuLoadThreshold: 80, storage: 84 },
       updatedById: admin.id,

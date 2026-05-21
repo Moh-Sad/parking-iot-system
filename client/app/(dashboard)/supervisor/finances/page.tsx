@@ -123,7 +123,7 @@ export default function FinancesPage() {
     .filter((i) => i.status === "PAID" && Date.now() - new Date(i.date).getTime() < 86_400_000)
     .reduce((acc, i) => acc + i.amount, 0);
   const activeAccounts = new Set(invoices.map((i) => i.client)).size;
-  const currency = invoices[0]?.currency ?? "USD";
+  const currency = invoices[0]?.currency ?? "ETB";
 
   const downloadPdf = async () => {
     if (!detail) return;

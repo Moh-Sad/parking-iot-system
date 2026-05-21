@@ -77,7 +77,7 @@ export default function Login() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label htmlFor="email" className="text-sm font-medium text-foreground ml-1">Email</label>
-                  <div className="group/input flex h-11 items-center gap-3 rounded-xl border border-border/50 bg-background/50 px-3 transition-colors focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50">
+                  <div className="group/input flex h-11 items-center gap-3 rounded-xl border border-border/50 bg-transparent px-3 transition-colors focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50">
                     <Mail className="h-4 w-4 text-muted-foreground group-focus-within/input:text-primary" />
                     <input
                       id="email"
@@ -95,7 +95,7 @@ export default function Login() {
 
                 <div className="space-y-1.5">
                   <label htmlFor="password" className="text-sm font-medium text-foreground ml-1">Password</label>
-                  <div className="group/input flex h-11 items-center gap-3 rounded-xl border border-border/50 bg-background/50 px-3 transition-colors focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50">
+                  <div className="group/input flex h-11 items-center gap-3 rounded-xl border border-border/50 bg-transparent px-3 transition-colors focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50">
                     <Lock className="h-4 w-4 text-muted-foreground group-focus-within/input:text-primary" />
                     <input
                       id="password"

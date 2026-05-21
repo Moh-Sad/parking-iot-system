@@ -44,7 +44,7 @@ export async function getActiveSession(userId: string): Promise<ActiveSessionDto
     startTime: session.arrivalTime,
     timeElapsedSeconds: elapsedSec,
     currentCostCents: session.totalCostCents ?? session.energyCostCents ?? 0,
-    currency: 'USD',
+    currency: 'ETB',
     stateOfChargePct: session.currentSocPct ?? session.battery ?? null,
     powerDeliveryKW: session.currentPowerKW ? Number(session.currentPowerKW) : null,
     estimatedRemainingMinutes: session.estimatedRemainingMin ?? null,
@@ -155,7 +155,7 @@ export async function chargingHistory(
       energyKWh: r.energyDeliveredKWh ? Number(r.energyDeliveredKWh) : null,
       durationSeconds: r.durationSeconds,
       totalCostCents: r.totalCostCents,
-      currency: 'USD',
+      currency: 'ETB',
     })),
     meta: buildMeta(page, limit, total),
   };
@@ -206,7 +206,7 @@ export async function getReceipt(userId: string, sessionId: string): Promise<unk
     idleFeeCents: idleCents,
     taxCents,
     totalCostCents: totalCents,
-    currency: 'USD',
+    currency: 'ETB',
     paymentMethod: session.paymentMethod
       ? { brand: session.paymentMethod.brand, last4: session.paymentMethod.last4 }
       : null,

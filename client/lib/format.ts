@@ -11,7 +11,7 @@ export function initialsOf(
   return (fallback ?? "??").slice(0, 2).toUpperCase();
 }
 
-export function formatMoney(cents: number, currency = "USD"): string {
+export function formatMoney(cents: number, currency = "ETB"): string {
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
