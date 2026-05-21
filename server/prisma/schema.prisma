@@ -1,0 +1,462 @@
+// Parking IoT System — Prisma schema
+// Run: pnpm prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------- Enums --------------------
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  USER
+}
+
+enum WalletTxKind {
+  TOPUP
+  CHARGE
+  INVOICE_PAY
+  REFUND
+  ADJUSTMENT
+}
+
+enum CardBrand {
+  VISA
+  MASTERCARD
+  AMEX
+  DISCOVER
+  OTHER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  INVITED
+}
+
+enum SlotKind {
+  CHARGE_AND_PARK
+  PARKING_ONLY
+}
+
+enum CarType {
+  SEDAN
+  SUV
+  HATCHBACK
+  PICKUP
+  VAN
+  EV
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  PAID
+  PROCESSING
+  OVERDUE
+}
+
+enum TransactionStatus {
+  COMPLETED
+  PENDING
+  FAILED
+}
+
+enum PaymentMethod {
+  CORPORATE_FLEET_CARD
+  DIRECT_PAY
+  MOBILE_APP_WALLET
+  RFID_PASS
+  APPLE_PAY
+}
+
+enum LogStatus {
+  SUCCESS
+  IN_PROGRESS
+  FLAGGED
+}
+
+enum NotificationKind {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+// -------------------- Models --------------------
+
+model User {
+  id                  String     @id @default(cuid())
+  email               String     @unique
+  passwordHash        String?
+  firstName           String?
+  lastName            String?
+  role                Role       @default(SUPERVISOR)
+  roleLevel           Int        @default(4)
+  status              UserStatus @default(ACTIVE)
+  region              String?
+  phone               String?
+  preferences         Json?      // { currency, timezone, measurement, notifications: { chargeAlerts, balanceWarnings, receiptEmails } }
+  uid                 String     @unique
+  avatarUrl           String?
+  mustCompleteProfile Boolean    @default(false)
+  lastLoginAt         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  refreshTokens       RefreshToken[]
+  resetTokens         PasswordResetToken[]
+  auditLogs           AuditLog[]
+  assignmentsCreated  SlotAssignment[]     @relation("AssignmentCreatedBy")
+  notifications       Notification[]
+  settingsUpdated     SystemSettings[]     @relation("SettingsUpdatedBy")
+
+  // USER role relations
+  wallet              Wallet?
+  paymentMethods      UserPaymentMethod[]
+  vehicles            Vehicle[]            @relation("VehicleOwner")
+  invoicesOwned       Invoice[]            @relation("InvoiceOwner")
+
+  @@index([role])
+  @@index([status])
+  @@index([region])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  replacedById String?  @unique
+  userAgent   String?
+  ip          String?
+  createdAt   DateTime  @default(now())
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy  RefreshToken?  @relation("RefreshChain", fields: [replacedById], references: [id])
+  replaces    RefreshToken?  @relation("RefreshChain")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model Station {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  region    String
+  address   String?
+  latitude  Decimal? @db.Decimal(10, 6)
+  longitude Decimal? @db.Decimal(10, 6)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slots        Slot[]
+  transactions Transaction[]
+  invoices     Invoice[]
+
+  @@index([region])
+  @@map("stations")
+}
+
+model Slot {
+  id         String   @id @default(cuid())
+  stationId  String
+  slotNumber Int
+  displayId  String
+  kind       SlotKind @default(PARKING_ONLY)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  station     Station          @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  assignments SlotAssignment[]
+
+  @@unique([stationId, slotNumber])
+  @@index([stationId])
+  @@map("slots")
+}
+
+model Vehicle {
+  id           String   @id @default(cuid())
+  plateNumber  String   @unique
+  driverName   String
+  carType      CarType  @default(SEDAN)
+  model        String?  // e.g. "Model S Plaid"
+  ownerId      String?
+  cardNumber   String?  @unique  // 4-digit numeric IoT card. Nullable for legacy/seeded rows.
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignments  SlotAssignment[]
+  owner        User?    @relation("VehicleOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId])
+  @@index([cardNumber])
+  @@map("vehicles")
+}
+
+model SlotAssignment {
+  id              String           @id @default(cuid())
+  slotId          String
+  vehicleId       String
+  createdById     String?
+  status          AssignmentStatus @default(ACTIVE)
+  battery         Int?
+  arrivalTime     DateTime         @default(now())
+  departureTime   DateTime?
+  durationSeconds Int?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // EV session metering (CHARGE_AND_PARK)
+  energyDeliveredKWh    Decimal? @db.Decimal(10, 3)
+  peakPowerKW           Decimal? @db.Decimal(7, 2)
+  currentPowerKW        Decimal? @db.Decimal(7, 2)
+  currentSocPct         Int?
+  estimatedRemainingMin Int?
+  connectorType         String?
+  carbonOffsetGramsCO2e Int?
+
+  // Cost breakdown (set when session closes)
+  unitCostPerKWhCents   Int?
+  energyCostCents       Int?
+  facilityFeeCents      Int?
+  idleMinutes           Int?
+  idleFeeCents          Int?
+  taxCents              Int?
+  totalCostCents        Int?
+
+  // Payment linkage
+  paidAt          DateTime?
+  paymentMethodId String?
+  invoiceId       String?
+
+  slot      Slot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle       @relation(fields: [vehicleId], references: [id])
+  createdBy User?         @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
+  paymentMethod UserPaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  invoice   Invoice?      @relation("InvoiceAssignment", fields: [invoiceId], references: [id])
+  transactions Transaction[]
+
+  @@index([slotId])
+  @@index([vehicleId])
+  @@index([status])
+  // App enforces single-ACTIVE per slot. Prisma can't express a partial unique index in schema;
+  // a raw migration adds: CREATE UNIQUE INDEX one_active_per_slot ON slot_assignments(slotId) WHERE status = 'ACTIVE';
+  @@map("slot_assignments")
+}
+
+model Transaction {
+  id           String            @id @default(cuid())
+  code         String            @unique
+  stationId    String
+  assignmentId String?
+  amountCents  Int
+  currency     String            @default("USD")
+  method       PaymentMethod
+  status       TransactionStatus @default(COMPLETED)
+  processedAt  DateTime          @default(now())
+  createdAt    DateTime          @default(now())
+
+  station    Station         @relation(fields: [stationId], references: [id])
+  assignment SlotAssignment? @relation(fields: [assignmentId], references: [id])
+
+  @@index([stationId])
+  @@index([status])
+  @@index([processedAt])
+  @@map("transactions")
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  code            String        @unique
+  clientName      String
+  stationId       String
+  ownerId         String?
+  issueDate       DateTime
+  dueDate         DateTime
+  status          InvoiceStatus @default(PROCESSING)
+  billTo          Json
+  subtotalCents   Int
+  taxCents        Int
+  grandTotalCents Int
+  currency        String        @default("USD")
+  notes           String?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  station     Station            @relation(fields: [stationId], references: [id])
+  owner       User?              @relation("InvoiceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  lineItems   InvoiceLineItem[]
+  assignments SlotAssignment[]   @relation("InvoiceAssignment")
+
+  @@index([status])
+  @@index([stationId])
+  @@index([ownerId])
+  @@index([issueDate])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  label       String
+  description String
+  totalCents  Int
+  sortOrder   Int     @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+model AuditLog {
+  id        String    @id @default(cuid())
+  timestamp DateTime  @default(now())
+  component String
+  userId    String?
+  action    String
+  details   Json?
+  status    LogStatus @default(SUCCESS)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([timestamp])
+  @@index([component])
+  @@index([status])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model SystemSettings {
+  id             Int      @id @default(1)
+  features       Json
+  localization   Json
+  authentication Json
+  hardware       Json
+  updatedAt      DateTime @updatedAt
+  updatedById    String?
+
+  updatedBy User? @relation("SettingsUpdatedBy", fields: [updatedById], references: [id])
+
+  @@map("system_settings")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String?
+  kind      NotificationKind @default(INFO)
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model SystemMetricsSnapshot {
+  id              String   @id @default(cuid())
+  capturedAt      DateTime @default(now())
+  healthScore     Decimal  @db.Decimal(5, 2)
+  latencyMs       Int
+  uptimePct       Decimal  @db.Decimal(5, 2)
+  activeNodes     Int
+  criticalErrors  Int
+  dailyActions    Int
+
+  @@index([capturedAt])
+  @@map("system_metrics_snapshots")
+}
+
+// -------------------- USER role: wallet, payments, cards --------------------
+
+model Wallet {
+  id                       String   @id @default(cuid())
+  userId                   String   @unique
+  balanceCents             Int      @default(0)
+  currency                 String   @default("USD")
+  autoRefillEnabled        Boolean  @default(false)
+  autoRefillThresholdCents Int      @default(5000)  // $50
+  autoRefillAmountCents    Int      @default(10000) // $100
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id                 String       @id @default(cuid())
+  walletId           String
+  kind               WalletTxKind
+  amountCents        Int          // +ve = credit (topup/refund), -ve = debit (charge/pay)
+  balanceAfterCents  Int
+  description        String
+  paymentMethodId    String?
+  relatedInvoiceId   String?
+  relatedAssignmentId String?
+  createdAt          DateTime     @default(now())
+
+  wallet        Wallet              @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  paymentMethod UserPaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@map("wallet_transactions")
+}
+
+model UserPaymentMethod {
+  id          String    @id @default(cuid())
+  userId      String
+  brand       CardBrand @default(OTHER)
+  last4       String
+  expiryMonth Int
+  expiryYear  Int
+  holderName  String?
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletTransactions WalletTransaction[]
+  assignments        SlotAssignment[]
+
+  @@index([userId])
+  @@map("user_payment_methods")
+}

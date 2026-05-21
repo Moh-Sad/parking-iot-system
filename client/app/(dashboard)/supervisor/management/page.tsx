@@ -1,225 +1,154 @@
-import Link from "next/link";
-import { Car, CarFront, Clock3, PlugZap, SquareParking } from "lucide-react";
+"use client";
 
-type Slot = {
-  slotNumber: number;
-  id: string;
-  kind: "charge-and-park" | "parking-only";
-  occupied: boolean;
-  vehicle?: string;
-  duration?: string;
-  battery?: number;
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { api, ApiCallError } from "@/lib/api";
+import type { SlotsListResponse, SlotStats, SlotView } from "@/lib/api-types";
+import { SlotCard } from "@/components/dashboard/slot-card";
+
+const ZERO_STATS: SlotStats = {
+  totalSlots: 0,
+  usedSlots: 0,
+  availableSlots: 0,
+  chargingSlots: 0,
+  parkingOnlySlots: 0,
 };
 
-const slots: Slot[] = [
-  { slotNumber: 1, id: "A-01", kind: "charge-and-park", occupied: true, vehicle: "Tesla Model 3", duration: "01:34:18", battery: 67 },
-  { slotNumber: 2, id: "A-02", kind: "charge-and-park", occupied: false },
-  { slotNumber: 3, id: "A-03", kind: "charge-and-park", occupied: true, vehicle: "BYD Seal", duration: "00:46:52", battery: 41 },
-  { slotNumber: 4, id: "A-04", kind: "charge-and-park", occupied: false },
-  { slotNumber: 5, id: "P-05", kind: "parking-only", occupied: true, vehicle: "Hyundai Elantra", duration: "00:21:08" },
-  { slotNumber: 6, id: "P-06", kind: "parking-only", occupied: false },
-  { slotNumber: 7, id: "P-07", kind: "parking-only", occupied: true, vehicle: "Kia Sportage", duration: "02:03:11" },
-  { slotNumber: 8, id: "P-08", kind: "parking-only", occupied: false },
-  { slotNumber: 9, id: "P-09", kind: "parking-only", occupied: true, vehicle: "Toyota Corolla", duration: "00:58:33" },
-  { slotNumber: 10, id: "P-10", kind: "parking-only", occupied: false },
-];
-
-const totalSlots = slots.length;
-const chargingSlots = slots.filter((slot) => slot.kind === "charge-and-park").length;
-const parkingOnlySlots = slots.filter((slot) => slot.kind === "parking-only").length;
-const usedSlots = slots.filter((slot) => slot.occupied).length;
-const availableSlots = totalSlots - usedSlots;
-const usagePercent = Math.round((usedSlots / totalSlots) * 100);
-const topRowSlots = slots.slice(0, 5);
-const bottomRowSlots = slots.slice(5);
-
-function slotBadge(kind: Slot["kind"]) {
-  return kind === "charge-and-park" ? "Charge + Park" : "Parking";
+async function loadSlots(): Promise<SlotsListResponse> {
+  // /slots returns { data, stats } — keep the full envelope.
+  return api.get<SlotsListResponse>("/slots", { unwrap: false });
 }
 
 export default function ManagementPage() {
+  const [slots, setSlots] = useState<SlotView[]>([]);
+  const [stats, setStats] = useState<SlotStats>(ZERO_STATS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async (showSpinner: boolean) => {
+    if (showSpinner) setIsLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+    try {
+      const res = await loadSlots();
+      setSlots(res.data);
+      setStats(res.stats);
+    } catch (err) {
+      if (err instanceof ApiCallError) {
+        setError(err.message || "Failed to load slots");
+      } else {
+        setError("Network error. Is the API server running?");
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchData(true);
+  }, [fetchData]);
+
+  // Split halfway: with 10 slots that's the original 5/5 layout. With more,
+  // it gives two roughly balanced rows.
+  const half = Math.ceil(slots.length / 2);
+  const topRow = slots.slice(0, half);
+  const bottomRow = slots.slice(half);
+
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-border/70 bg-card/95 p-4 shadow-sm sm:p-6 dark:shadow-none">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Supervisor Management</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                Supervisor Management
+              </h1>
+              <button
+                type="button"
+                onClick={() => void fetchData(false)}
+                disabled={isLoading || isRefreshing}
+                aria-label="Refresh slots"
+                className="rounded-md border border-border/60 bg-background p-1.5 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              </button>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Live occupancy view with 10 slots (4 charging + parking, 6 parking-only).
+              {isLoading
+                ? "Loading live occupancy…"
+                : stats.totalSlots > 0
+                  ? `Live occupancy across ${stats.totalSlots} slots (${stats.chargingSlots} charging + parking, ${stats.parkingOnlySlots} parking-only).`
+                  : "No slots available."}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-sm dark:bg-background dark:shadow-none">
-              <p className="text-[10px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">Used</p>
-              <p className="text-lg font-semibold">{usedSlots}</p>
-            </div>
-            <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-sm dark:bg-background dark:shadow-none">
-              <p className="text-[10px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">Available</p>
-              <p className="text-lg font-semibold">{availableSlots}</p>
-            </div>
-            <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-sm dark:bg-background dark:shadow-none">
-              <p className="text-[10px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">Charge + Park</p>
-              <p className="text-lg font-semibold">{chargingSlots}</p>
-            </div>
-            <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-sm dark:bg-background dark:shadow-none">
-              <p className="text-[10px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">Parking Only</p>
-              <p className="text-lg font-semibold">{parkingOnlySlots}</p>
-            </div>
+            <StatTile label="Used" value={stats.usedSlots} />
+            <StatTile label="Available" value={stats.availableSlots} />
+            <StatTile label="Charge + Park" value={stats.chargingSlots} />
+            <StatTile label="Parking Only" value={stats.parkingOnlySlots} />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5 lg:gap-3">
-          {topRowSlots.map((slot) => (
-            <Link
-              key={slot.id}
-              href={`/supervisor/management/${slot.slotNumber}`}
-              className={`group relative flex min-h-75 flex-col overflow-hidden rounded-md border p-3 transition-all ${
-                slot.occupied
-                  ? "border-primary/35 bg-primary text-primary-foreground"
-                  : "border-border/70 bg-card text-foreground shadow-sm hover:border-primary/30 hover:shadow-md dark:bg-background dark:shadow-none"
-              }`}
-            >
-              <div className="absolute top-0 left-0 w-full h-full">
-                {slot.occupied ? (
-                  <CarFront className="h-70 w-70 text-muted-foreground/10" />
-                ) : (
-                  <SquareParking className="h-70 w-70 text-muted-foreground/10" />
-                )}
-              </div>
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-foreground/10 opacity-80 dark:bg-foreground/5" />
-              <div className="mb-3 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-[11px] font-semibold tracking-[0.12em] uppercase">{slot.id}</p>
-                  <p
-                    className={`mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
-                      slot.occupied
-                        ? "border-primary-foreground/30 bg-primary-foreground/10"
-                        : "border-border/70 bg-muted/30 text-muted-foreground"
-                    }`}
-                  >
-                    {slotBadge(slot.kind)}
-                  </p>
-                  <p className={`mt-1 text-[9px] font-medium tracking-wide ${slot.occupied ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                    Slot {slot.slotNumber} - Tap to assign
-                  </p>
-                </div>
-                {slot.occupied ? (
-                  <Car className="h-6 w-6 text-primary-foreground/90" />
-                ) : (
-                  <SquareParking className="h-6 w-6 text-muted-foreground" />
-                )}
-              </div>
+        {error && (
+          <div
+            role="alert"
+            className="mb-4 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
-              {slot.occupied ? (
-                <div className="mt-auto space-y-2">
-                  <p className="truncate text-xs font-medium">{slot.vehicle}</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg bg-primary-foreground/10 p-2">
-                      <p className="mb-1 flex items-center gap-1.5 text-primary-foreground/80">
-                        <Clock3 className="h-3.5 w-3.5" />
-                        Elapsed
-                      </p>
-                      <p className="font-semibold">{slot.duration}</p>
-                    </div>
-                    <div className="rounded-lg bg-primary-foreground/10 p-2">
-                      <p className="mb-1 flex items-center gap-1.5 text-primary-foreground/80">
-                        <PlugZap className="h-3.5 w-3.5" />
-                        {slot.kind === "charge-and-park" ? "Battery" : "Status"}
-                      </p>
-                      <p className="font-semibold">
-                        {slot.kind === "charge-and-park" ? `${slot.battery}%` : "Parked"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-auto rounded-lg border border-dashed border-border/70 bg-muted/20 p-2.5 text-xs text-muted-foreground">
-                  <p className="font-medium">Slot available</p>
-                  <p className="mt-1">Ready for incoming vehicle.</p>
-                </div>
-              )}
-            </Link>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="flex min-h-64 items-center justify-center text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : slots.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-10 text-center text-sm text-muted-foreground">
+            No slots assigned to your region yet.
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5 lg:gap-3">
+              {topRow.map((slot) => (
+                <SlotCard
+                  key={slot.id}
+                  slot={slot}
+                  href={`/supervisor/management/${slot.id}`}
+                />
+              ))}
+            </div>
 
-        <div className="my-3 w-full rounded-xl border border-border/60 bg-muted/20 px-4 py-2 text-center text-[10px] font-semibold tracking-[0.35em] text-muted-foreground uppercase">
-          Access Lane - Zone A
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5 lg:gap-3">
-          {bottomRowSlots.map((slot) => (
-            <Link
-              key={slot.id}
-              href={`/supervisor/management/${slot.slotNumber}`}
-              className={`group relative flex min-h-75 flex-col overflow-hidden rounded-md border p-3 transition-all ${
-                slot.occupied
-                  ? "border-primary/35 bg-primary text-primary-foreground"
-                  : "border-border/70 bg-card text-foreground shadow-sm hover:border-primary/30 hover:shadow-md dark:bg-background dark:shadow-none"
-              }`}
-            >
-              <div className="absolute top-0 left-0 w-full h-full">
-                {slot.occupied ? (
-                  <CarFront className="h-70 w-70 text-muted-foreground/10" />
-                ) : (
-                  <SquareParking className="h-70 w-70 text-muted-foreground/10" />
-                )}
-              </div>
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-foreground/10 opacity-80 dark:bg-foreground/5" />
-              <div className="mb-3 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-[11px] font-semibold tracking-[0.12em] uppercase">{slot.id}</p>
-                  <p
-                    className={`mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
-                      slot.occupied
-                        ? "border-primary-foreground/30 bg-primary-foreground/10"
-                        : "border-border/70 bg-muted/30 text-muted-foreground"
-                    }`}
-                  >
-                    {slotBadge(slot.kind)}
-                  </p>
-                  <p className={`mt-1 text-[9px] font-medium tracking-wide ${slot.occupied ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                    Slot {slot.slotNumber} - Tap to assign
-                  </p>
+            {bottomRow.length > 0 && (
+              <>
+                <div className="my-3 w-full rounded-xl border border-border/60 bg-muted/20 px-4 py-2 text-center text-[10px] font-semibold tracking-[0.35em] text-muted-foreground uppercase">
+                  Access Lane
                 </div>
-                {slot.occupied ? (
-                  <Car className="h-6 w-6 text-primary-foreground/90" />
-                ) : (
-                  <SquareParking className="h-6 w-6 text-muted-foreground" />
-                )}
-              </div>
-
-              {slot.occupied ? (
-                <div className="mt-auto space-y-2">
-                  <p className="truncate text-xs font-medium">{slot.vehicle}</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg bg-primary-foreground/10 p-2">
-                      <p className="mb-1 flex items-center gap-1.5 text-primary-foreground/80">
-                        <Clock3 className="h-3.5 w-3.5" />
-                        Elapsed
-                      </p>
-                      <p className="font-semibold">{slot.duration}</p>
-                    </div>
-                    <div className="rounded-lg bg-primary-foreground/10 p-2">
-                      <p className="mb-1 flex items-center gap-1.5 text-primary-foreground/80">
-                        <PlugZap className="h-3.5 w-3.5" />
-                        {slot.kind === "charge-and-park" ? "Battery" : "Status"}
-                      </p>
-                      <p className="font-semibold">
-                        {slot.kind === "charge-and-park" ? `${slot.battery}%` : "Parked"}
-                      </p>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5 lg:gap-3">
+                  {bottomRow.map((slot) => (
+                    <SlotCard
+                      key={slot.id}
+                      slot={slot}
+                      href={`/supervisor/management/${slot.id}`}
+                    />
+                  ))}
                 </div>
-              ) : (
-                <div className="mt-auto rounded-lg border border-dashed border-border/70 bg-muted/20 p-2.5 text-xs text-muted-foreground">
-                  <p className="font-medium">Slot available</p>
-                  <p className="mt-1">Ready for incoming vehicle.</p>
-                </div>
-              )}
-            </Link>
-          ))}
-        </div>
+              </>
+            )}
+          </>
+        )}
       </section>
+    </div>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-sm dark:bg-background dark:shadow-none">
+      <p className="text-[10px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">{label}</p>
+      <p className="text-lg font-semibold">{value}</p>
     </div>
   );
 }

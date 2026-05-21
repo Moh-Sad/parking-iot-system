@@ -1,0 +1,64 @@
+import { Router } from 'express';
+import { authenticate } from '../middleware/auth.js';
+import { requireRole } from '../middleware/requireRole.js';
+import { validate, validated } from '../middleware/validate.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { ok } from '../utils/http.js';
+import * as svc from '../services/finances.service.js';
+import {
+  kpisQuery,
+  timeseriesQuery,
+  dailyVolumeQuery,
+  type TimeseriesQuery,
+  type DailyVolumeQuery,
+} from '../schemas/finances.schema.js';
+
+const router = Router();
+router.use(authenticate);
+
+// Admin-only: revenue-heavy financial aggregations
+router.get(
+  '/kpis',
+  requireRole('ADMIN'),
+  validate(kpisQuery, 'query'),
+  asyncHandler(async (_req, res) => {
+    const kpis = await svc.getKpis();
+    return ok(res, kpis);
+  }),
+);
+
+router.get(
+  '/revenue-timeseries',
+  requireRole('ADMIN'),
+  validate(timeseriesQuery, 'query'),
+  asyncHandler(async (req, res) => {
+    const q = validated<TimeseriesQuery>(req, 'query');
+    const points = await svc.revenueTimeseries(q);
+    return ok(res, points);
+  }),
+);
+
+router.get(
+  '/daily-volume',
+  requireRole('ADMIN'),
+  validate(dailyVolumeQuery, 'query'),
+  asyncHandler(async (req, res) => {
+    const q = validated<DailyVolumeQuery>(req, 'query');
+    const points = await svc.dailyVolume(q);
+    return ok(res, points);
+  }),
+);
+
+// Admin + Supervisor: operational load chart (no revenue data)
+router.get(
+  '/hourly-load',
+  requireRole('ADMIN', 'SUPERVISOR'),
+  asyncHandler(async (req, res) => {
+    const hoursRaw = (req.query as { hours?: string }).hours;
+    const hours = Math.min(72, Math.max(1, Number(hoursRaw) || 14));
+    const points = await svc.hourlyLoad(hours);
+    return ok(res, points);
+  }),
+);
+
+export default router;

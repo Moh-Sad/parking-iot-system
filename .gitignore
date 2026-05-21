@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+Thumbs.db
+
+# Test / coverage
+coverage/
+.vitest/
+.nyc_output/
+
+# Prisma local
+prisma/migrations/dev.db*

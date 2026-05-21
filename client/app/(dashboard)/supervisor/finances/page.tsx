@@ -1,142 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { X, Download, Share2, SlidersHorizontal, Zap, TrendingUp } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  AlertCircle,
+  Download,
+  Loader2,
+  RefreshCw,
+  Share2,
+  SlidersHorizontal,
+  TrendingUp,
+  X,
+  Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { api, ApiCallError } from "@/lib/api";
+import type {
+  InvoiceDetail,
+  InvoiceSummary,
+  Paginated,
+} from "@/lib/api-types";
+import { formatMoney } from "@/lib/format";
 
-/* ------------------------------------------------------------------ */
-/*  Types & mock data                                                  */
-/* ------------------------------------------------------------------ */
+type Filter = "ALL" | "PENDING";
 
-interface Invoice {
-  id: string;
-  client: string;
-  node: string;
-  date: string;
-  amount: number;
-  status: "PAID" | "PROCESSING" | "OVERDUE";
-  billTo: {
-    name: string;
-    address: string[];
-  };
-  lineItems: { label: string; description: string; total: number }[];
-  subtotal: number;
-  tax: number;
-  grandTotal: number;
-}
-
-const INVOICES: Invoice[] = [
-  {
-    id: "INV-2024-001",
-    client: "Aether Fleet Solutions",
-    node: "SECTOR 7-G HUB",
-    date: "Oct 12, 2024",
-    amount: 12450.0,
-    status: "PAID",
-    billTo: {
-      name: "Aether Fleet Solutions",
-      address: ["702 Tech Plaza, Ste 400", "San Francisco, CA 94105"],
-    },
-    lineItems: [
-      { label: "KW/h Consumption", description: "Node: HUB-7G (48,200 units)", total: 9640.0 },
-      { label: "Peak Load Premium", description: "Network Overload Surcharge", total: 1810.0 },
-      { label: "Maintenance Fee", description: "Periodic Sensor Calibration", total: 1000.0 },
-    ],
-    subtotal: 12450.0,
-    tax: 0,
-    grandTotal: 12450.0,
-  },
-  {
-    id: "INV-2024-002",
-    client: "Nordic Logistics",
-    node: "OSLO TERMINUS B",
-    date: "Oct 14, 2024",
-    amount: 8210.0,
-    status: "PROCESSING",
-    billTo: {
-      name: "Nordic Logistics",
-      address: ["15 Harbour Rd", "Oslo, Norway 0150"],
-    },
-    lineItems: [
-      { label: "KW/h Consumption", description: "Node: OSLO-TB (32,100 units)", total: 6410.0 },
-      { label: "Peak Load Premium", description: "Network Overload Surcharge", total: 1000.0 },
-      { label: "Maintenance Fee", description: "Periodic Sensor Calibration", total: 800.0 },
-    ],
-    subtotal: 8210.0,
-    tax: 0,
-    grandTotal: 8210.0,
-  },
-  {
-    id: "INV-2024-003",
-    client: "Hyperion Dynamics",
-    node: "LAX CENTRAL PORT",
-    date: "Oct 08, 2024",
-    amount: 21800.0,
-    status: "OVERDUE",
-    billTo: {
-      name: "Hyperion Dynamics",
-      address: ["9000 Sunset Blvd", "Los Angeles, CA 90069"],
-    },
-    lineItems: [
-      { label: "KW/h Consumption", description: "Node: LAX-CP (91,200 units)", total: 18200.0 },
-      { label: "Peak Load Premium", description: "Network Overload Surcharge", total: 2600.0 },
-      { label: "Maintenance Fee", description: "Periodic Sensor Calibration", total: 1000.0 },
-    ],
-    subtotal: 21800.0,
-    tax: 0,
-    grandTotal: 21800.0,
-  },
-  {
-    id: "INV-2024-004",
-    client: "Vertex Grid Co.",
-    node: "NEO-TOKYO SUBSTATION",
-    date: "Oct 15, 2024",
-    amount: 4120.5,
-    status: "PAID",
-    billTo: {
-      name: "Vertex Grid Co.",
-      address: ["1-2-3 Shibuya", "Tokyo, Japan 150-0002"],
-    },
-    lineItems: [
-      { label: "KW/h Consumption", description: "Node: NTK-SS (16,400 units)", total: 3280.0 },
-      { label: "Peak Load Premium", description: "Network Overload Surcharge", total: 440.5 },
-      { label: "Maintenance Fee", description: "Periodic Sensor Calibration", total: 400.0 },
-    ],
-    subtotal: 4120.5,
-    tax: 0,
-    grandTotal: 4120.5,
-  },
-  {
-    id: "INV-2024-005",
-    client: "Titan Heavy Industries",
-    node: "BERLIN GRID ALPHA",
-    date: "Oct 16, 2024",
-    amount: 33400.0,
-    status: "PROCESSING",
-    billTo: {
-      name: "Titan Heavy Industries",
-      address: ["Alexanderplatz 7", "Berlin, Germany 10178"],
-    },
-    lineItems: [
-      { label: "KW/h Consumption", description: "Node: BGA-01 (120,500 units)", total: 28100.0 },
-      { label: "Peak Load Premium", description: "Network Overload Surcharge", total: 4300.0 },
-      { label: "Maintenance Fee", description: "Periodic Sensor Calibration", total: 1000.0 },
-    ],
-    subtotal: 33400.0,
-    tax: 0,
-    grandTotal: 33400.0,
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function fmt(n: number) {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
-
-function StatusBadge({ status }: { status: Invoice["status"] }) {
+function StatusBadge({ status }: { status: InvoiceSummary["status"] }) {
   if (status === "PAID")
     return (
       <span className="inline-flex items-center rounded-full bg-foreground px-3 py-0.5 text-xs font-semibold tracking-wider text-background">
@@ -157,100 +44,220 @@ function StatusBadge({ status }: { status: Invoice["status"] }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page component                                                     */
-/* ------------------------------------------------------------------ */
+function formatShortDate(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
+}
 
 export default function FinancesPage() {
-  const [filter, setFilter] = useState<"ALL" | "PENDING">("ALL");
-  const [selected, setSelected] = useState<Invoice | null>(null);
+  const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
+  const [filter, setFilter] = useState<Filter>("ALL");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered =
-    filter === "ALL"
-      ? INVOICES
-      : INVOICES.filter((i) => i.status !== "PAID");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<InvoiceDetail | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  const [downloading, setDownloading] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const loadList = useCallback(async (showSpinner: boolean) => {
+    if (showSpinner) setIsLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+    try {
+      const res = await api.get<Paginated<InvoiceSummary>>(
+        "/invoices?limit=100",
+        { unwrap: false },
+      );
+      setInvoices(res.data);
+    } catch (err) {
+      if (err instanceof ApiCallError) setError(err.message || "Failed to load invoices");
+      else setError("Network error. Is the API server running?");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadList(true);
+  }, [loadList]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setIsLoadingDetail(true);
+    (async () => {
+      try {
+        const d = await api.get<InvoiceDetail>(`/invoices/${selectedId}`);
+        if (!cancelled) setDetail(d);
+      } catch (err) {
+        if (!cancelled) {
+          if (err instanceof ApiCallError) setError(err.message);
+          else setError("Failed to load invoice detail");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingDetail(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  const filtered = filter === "ALL" ? invoices : invoices.filter((i) => i.status !== "PAID");
+
+  // Stats derived from the loaded list.
+  const totalOutstandingCents = invoices
+    .filter((i) => i.status === "OVERDUE" || i.status === "PROCESSING")
+    .reduce((acc, i) => acc + i.amount, 0);
+  const last24hCents = invoices
+    .filter((i) => i.status === "PAID" && Date.now() - new Date(i.date).getTime() < 86_400_000)
+    .reduce((acc, i) => acc + i.amount, 0);
+  const activeAccounts = new Set(invoices.map((i) => i.client)).size;
+  const currency = invoices[0]?.currency ?? "USD";
+
+  const downloadPdf = async () => {
+    if (!detail) return;
+    setDownloading(true);
+    try {
+      const res = await api.raw(`/invoices/${detail.id}/pdf`);
+      if (!res.ok) throw new Error("Failed to download PDF");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${detail.code}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to download PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const submitShare = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!detail) return;
+    const form = new FormData(e.currentTarget);
+    const recipients = (form.get("recipients") as string | null)?.trim() ?? "";
+    const message = (form.get("message") as string | null)?.trim() ?? "";
+    const list = recipients
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (list.length === 0) {
+      setError("Enter at least one recipient email.");
+      return;
+    }
+    setSharing(true);
+    setError(null);
+    try {
+      await api.post(`/invoices/${detail.id}/share`, {
+        to: list,
+        ...(message ? { message } : {}),
+      });
+      setShareOpen(false);
+    } catch (err) {
+      if (err instanceof ApiCallError) setError(err.message || "Failed to share invoice");
+      else setError("Network error");
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <div className="bg-background text-foreground">
-      {/* Header */}
-      <div className="mb-6 md:mb-8">
-        <h1 className="mb-1 text-2xl font-semibold sm:text-3xl">
-          Billing &amp; Invoices
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Manage enterprise-level billing cycles and network transaction logs.
-        </p>
+      <div className="mb-6 md:mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="mb-1 text-2xl font-semibold sm:text-3xl">Billing &amp; Invoices</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage enterprise-level billing cycles and network transaction logs.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void loadList(false)}
+          disabled={isLoading || isRefreshing}
+          aria-label="Refresh invoices"
+          className="rounded-md border border-border/60 bg-background p-2 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
-      {/* Two-column layout */}
+      {error && (
+        <div
+          role="alert"
+          className="mb-4 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="flex gap-6">
-        {/* -------- LEFT COLUMN -------- */}
-        <div className={`min-w-0 ${selected ? "flex-1" : "w-full"}`}>
+        <div className={`min-w-0 ${detail ? "flex-1" : "w-full"}`}>
           {/* Stat cards */}
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            {/* Total Outstanding */}
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Total Outstanding
               </p>
               <p className="text-2xl font-bold leading-tight sm:text-3xl">
-                $142,390.00
+                {formatMoney(totalOutstandingCents, currency)}
               </p>
-              <div className="mt-4 flex items-center gap-2">
-                <div className="h-1 w-10 rounded-full bg-foreground" />
-                <span className="text-xs text-muted-foreground">65%</span>
-              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                {invoices.filter((i) => i.status !== "PAID").length} pending invoice
+                {invoices.filter((i) => i.status !== "PAID").length === 1 ? "" : "s"}
+              </p>
             </div>
 
-            {/* Processed (24H) */}
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Processed (24H)
               </p>
               <p className="text-2xl font-bold leading-tight sm:text-3xl">
-                $28,941.50
+                {formatMoney(last24hCents, currency)}
               </p>
               <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <TrendingUp className="h-3.5 w-3.5" />
-                +12.4%
+                Paid in last 24h
               </div>
             </div>
 
-            {/* Active Accounts */}
             <div className="rounded-xl border border-foreground/40 bg-card p-4">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Active Accounts
               </p>
-              <p className="text-2xl font-bold leading-tight sm:text-3xl">
-                1,248
-              </p>
-              <p className="mt-4 text-xs text-muted-foreground">
-                Global Network Nodes
-              </p>
+              <p className="text-2xl font-bold leading-tight sm:text-3xl">{activeAccounts}</p>
+              <p className="mt-4 text-xs text-muted-foreground">Distinct clients billed</p>
             </div>
 
-            {/* Network Health */}
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Network Health
+                Total Invoices
               </p>
-              <p className="text-2xl font-bold leading-tight sm:text-3xl">
-                99.9%
-              </p>
-              <p className="mt-4 text-xs text-muted-foreground">
-                Real-time verification
-              </p>
+              <p className="text-2xl font-bold leading-tight sm:text-3xl">{invoices.length}</p>
+              <p className="mt-4 text-xs text-muted-foreground">In current view</p>
             </div>
           </div>
 
-          {/* Recent Invoices */}
           <div className="rounded-xl border border-border bg-card">
-            {/* Toolbar */}
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
               <div className="flex items-center gap-3">
-                <h2 className="text-sm font-bold uppercase tracking-wider">
-                  Recent Invoices
-                </h2>
+                <h2 className="text-sm font-bold uppercase tracking-wider">Recent Invoices</h2>
                 <div className="flex overflow-hidden rounded-md border border-border">
                   <button
                     type="button"
@@ -276,13 +283,12 @@ export default function FinancesPage() {
                   </button>
                 </div>
               </div>
-              <button type="button" className="text-muted-foreground hover:text-foreground">
+              <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Filters">
                 <SlidersHorizontal className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Table header */}
-            <div className="grid grid-cols-[100px_1fr_90px_120px_110px] gap-2 border-b border-border px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground sm:px-6">
+            <div className="grid grid-cols-[120px_1fr_90px_120px_110px] gap-2 border-b border-border px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground sm:px-6">
               <span>Invoice ID</span>
               <span>Client / Node</span>
               <span>Date</span>
@@ -290,151 +296,191 @@ export default function FinancesPage() {
               <span>Status</span>
             </div>
 
-            {/* Rows */}
-            <div className="divide-y divide-border">
-              {filtered.map((inv) => (
-                <button
-                  key={inv.id}
-                  type="button"
-                  onClick={() => setSelected(inv)}
-                  className={`grid w-full grid-cols-[100px_1fr_90px_120px_110px] gap-2 px-4 py-4 text-left text-sm transition-colors hover:bg-accent/50 sm:px-6 ${
-                    selected?.id === inv.id ? "bg-accent/60" : ""
-                  }`}
-                >
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {inv.id}
-                  </span>
-                  <div>
-                    <p className="font-medium leading-tight">{inv.client}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      {inv.node}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {inv.date}
-                  </span>
-                  <span className="font-semibold">{fmt(inv.amount)}</span>
-                  <span className="flex items-center">
-                    <StatusBadge status={inv.status} />
-                  </span>
-                </button>
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+                No invoices matching this filter.
+              </p>
+            ) : (
+              <div className="divide-y divide-border">
+                {filtered.map((inv) => (
+                  <button
+                    key={inv.id}
+                    type="button"
+                    onClick={() => setSelectedId(inv.id)}
+                    className={`grid w-full grid-cols-[120px_1fr_90px_120px_110px] gap-2 px-4 py-4 text-left text-sm transition-colors hover:bg-accent/50 sm:px-6 ${
+                      selectedId === inv.id ? "bg-accent/60" : ""
+                    }`}
+                  >
+                    <span className="font-mono text-xs text-muted-foreground truncate">{inv.code}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium leading-tight truncate">{inv.client}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">
+                        {inv.node}
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{formatShortDate(inv.date)}</span>
+                    <span className="font-semibold">{formatMoney(inv.amount, inv.currency)}</span>
+                    <span className="flex items-center">
+                      <StatusBadge status={inv.status} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* -------- RIGHT COLUMN – Invoice Preview -------- */}
-        {selected && (
+        {/* Detail panel */}
+        {selectedId && (
           <div className="hidden w-[380px] shrink-0 lg:block">
             <div className="sticky top-6 rounded-xl border border-border bg-card">
-              {/* Header */}
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <h2 className="text-xs font-bold uppercase tracking-widest">
-                  Invoice Preview
-                </h2>
+                <h2 className="text-xs font-bold uppercase tracking-widest">Invoice Preview</h2>
                 <button
                   type="button"
-                  onClick={() => setSelected(null)}
+                  onClick={() => {
+                    setSelectedId(null);
+                    setShareOpen(false);
+                  }}
                   className="text-muted-foreground hover:text-foreground"
+                  aria-label="Close preview"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="p-5">
-                {/* Brand + badge */}
-                <div className="mb-6 flex items-start justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-foreground text-background">
-                    <Zap className="h-5 w-5" />
-                  </div>
-                  <div className="text-right">
-                    <StatusBadge status={selected.status} />
-                    <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                      {selected.id}
-                    </p>
-                  </div>
+              {isLoadingDetail || !detail ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-
-                <h3 className="mb-5 text-lg font-bold tracking-wide">
-                  VOLTCORE
-                </h3>
-
-                {/* Bill To */}
-                <div className="mb-6">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                    Bill To
-                  </p>
-                  <p className="font-medium">{selected.billTo.name}</p>
-                  {selected.billTo.address.map((line) => (
-                    <p key={line} className="text-sm text-muted-foreground">
-                      {line}
-                    </p>
-                  ))}
-                </div>
-
-                {/* Line items */}
-                <div className="mb-4 border-t border-border pt-4">
-                  <div className="mb-2 flex justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                    <span>Line Item</span>
-                    <span>Total</span>
+              ) : (
+                <div className="p-5">
+                  <div className="mb-6 flex items-start justify-between">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-foreground text-background">
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <div className="text-right">
+                      <StatusBadge status={detail.status} />
+                      <p className="mt-1 font-mono text-[10px] text-muted-foreground">{detail.code}</p>
+                    </div>
                   </div>
-                  <div className="space-y-3">
-                    {selected.lineItems.map((li) => (
-                      <div key={li.label} className="flex items-start justify-between">
-                        <div>
-                          <p className="text-sm font-medium">{li.label}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {li.description}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-sm font-semibold">
-                          {fmt(li.total)}
-                        </span>
-                      </div>
+
+                  <h3 className="mb-5 text-lg font-bold tracking-wide">PARKING IOT</h3>
+
+                  <div className="mb-6">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      Bill To
+                    </p>
+                    <p className="font-medium">{detail.billTo.name}</p>
+                    {detail.billTo.address.map((line, idx) => (
+                      <p key={`${line}-${idx}`} className="text-sm text-muted-foreground">
+                        {line}
+                      </p>
                     ))}
                   </div>
-                </div>
 
-                {/* Totals */}
-                <div className="border-t border-border pt-4">
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>{fmt(selected.subtotal)}</span>
+                  <div className="mb-4 border-t border-border pt-4">
+                    <div className="mb-2 flex justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      <span>Line Item</span>
+                      <span>Total</span>
+                    </div>
+                    <div className="space-y-3">
+                      {detail.lineItems.map((li) => (
+                        <div key={li.id} className="flex items-start justify-between">
+                          <div className="min-w-0 pr-3">
+                            <p className="text-sm font-medium">{li.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{li.description}</p>
+                          </div>
+                          <span className="shrink-0 text-sm font-semibold">
+                            {formatMoney(li.totalCents, detail.currency)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="mb-3 flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax (0%)</span>
-                    <span>{fmt(selected.tax)}</span>
+
+                  <div className="border-t border-border pt-4">
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span>{formatMoney(detail.subtotalCents, detail.currency)}</span>
+                    </div>
+                    <div className="mb-3 flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tax</span>
+                      <span>{formatMoney(detail.taxCents, detail.currency)}</span>
+                    </div>
+                    <div className="flex items-end justify-between">
+                      <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Grand Total
+                      </span>
+                      <span className="text-2xl font-bold">
+                        {formatMoney(detail.grandTotalCents, detail.currency)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-end justify-between">
-                    <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                      Grand Total
-                    </span>
-                    <span className="text-2xl font-bold">{fmt(selected.grandTotal)}</span>
+
+                  <div className="mt-6 space-y-3">
+                    <Button
+                      type="button"
+                      onClick={() => void downloadPdf()}
+                      disabled={downloading}
+                      className="h-auto w-full gap-2 bg-foreground py-3 text-xs font-bold uppercase tracking-widest text-background hover:bg-foreground/90 disabled:opacity-60"
+                    >
+                      {downloading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      {downloading ? "Downloading…" : "Export PDF"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShareOpen((v) => !v)}
+                      className="h-auto w-full gap-2 border-foreground/20 py-3 text-xs font-bold uppercase tracking-widest hover:bg-accent"
+                    >
+                      <Share2 className="h-4 w-4" /> {shareOpen ? "Close" : "Share invoice"}
+                    </Button>
+
+                    {shareOpen && (
+                      <form onSubmit={submitShare} className="space-y-2 rounded-lg border border-border bg-background p-3">
+                        <label className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                          Recipients (comma-separated emails)
+                        </label>
+                        <input
+                          name="recipients"
+                          type="text"
+                          required
+                          placeholder="ops@client.com, finance@client.com"
+                          className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+                          disabled={sharing}
+                        />
+                        <label className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                          Message (optional)
+                        </label>
+                        <textarea
+                          name="message"
+                          rows={2}
+                          placeholder="Please find attached…"
+                          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+                          disabled={sharing}
+                        />
+                        <Button
+                          type="submit"
+                          disabled={sharing}
+                          className="h-auto w-full gap-2 bg-foreground py-2.5 text-xs font-bold uppercase tracking-widest text-background hover:bg-foreground/90 disabled:opacity-60"
+                        >
+                          {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                          {sharing ? "Sending…" : "Send"}
+                        </Button>
+                      </form>
+                    )}
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="mt-6 space-y-3">
-                  <Button
-                    type="button"
-                    className="h-auto w-full gap-2 bg-foreground py-3 text-xs font-bold uppercase tracking-widest text-background hover:bg-foreground/90"
-                  >
-                    <Download className="h-4 w-4" /> Export PDF
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-auto w-full gap-2 border-foreground/20 py-3 text-xs font-bold uppercase tracking-widest hover:bg-accent"
-                  >
-                    <Share2 className="h-4 w-4" /> Share Invoice
-                  </Button>
-                </div>
-
-                {/* Timeline stub */}
-                <p className="mt-8 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Transaction Timeline
-                </p>
-              </div>
+              )}
             </div>
           </div>
         )}
