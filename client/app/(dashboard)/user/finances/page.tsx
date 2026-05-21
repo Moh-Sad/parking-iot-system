@@ -12,6 +12,7 @@ import type {
   UserInvoiceRow,
 } from "@/lib/api-types";
 import { formatMoney } from "@/lib/format";
+import { TopUpDialog } from "@/components/TopUpDialog";
 
 function StatusBadge({ status }: { status: UserInvoiceRow["status"] }) {
   if (status === "PAID")
@@ -159,7 +160,17 @@ export default function UserFinancePage() {
               <p className="text-2xl font-bold leading-tight sm:text-3xl">
                 {summary ? formatMoney(summary.availableCreditsCents, summary.currency) : "—"}
               </p>
-              <p className="mt-4 text-xs text-muted-foreground">Used wallet-first when paying</p>
+              <TopUpDialog
+                trigger={
+                  <button
+                    type="button"
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                  >
+                    Top up →
+                  </button>
+                }
+                onSuccess={() => load()}
+              />
             </div>
           </div>
 

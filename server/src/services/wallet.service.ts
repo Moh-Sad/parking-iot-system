@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
-import { WalletTxKind, type Wallet } from '@prisma/client';
+import { WalletTxKind, type Wallet, type CardBrand } from '@prisma/client';
 
 interface WalletDto {
   id: string;
@@ -116,4 +116,86 @@ export async function listWalletTransactions(
     orderBy: { createdAt: 'desc' },
     take: limit,
   });
+}
+
+interface CreatePaymentMethodInput {
+  brand: CardBrand;
+  last4: string;
+  expiryMonth: number;
+  expiryYear: number;
+  holderName?: string;
+  isDefault?: boolean;
+}
+
+export async function createPaymentMethod(userId: string, input: CreatePaymentMethodInput) {
+  // If marking this as default, clear other defaults first
+  if (input.isDefault) {
+    await prisma.userPaymentMethod.updateMany({
+      where: { userId, isDefault: true },
+      data: { isDefault: false },
+    });
+  } else {
+    // If no methods on file, this becomes default automatically
+    const count = await prisma.userPaymentMethod.count({ where: { userId } });
+    if (count === 0) input.isDefault = true;
+  }
+
+  const created = await prisma.userPaymentMethod.create({
+    data: {
+      userId,
+      brand: input.brand,
+      last4: input.last4,
+      expiryMonth: input.expiryMonth,
+      expiryYear: input.expiryYear,
+      holderName: input.holderName,
+      isDefault: input.isDefault ?? false,
+    },
+    select: { id: true, brand: true, last4: true, expiryMonth: true, expiryYear: true, holderName: true, isDefault: true },
+  });
+  return created;
+}
+
+export async function updatePaymentMethod(
+  userId: string,
+  id: string,
+  patch: { isDefault?: boolean; holderName?: string; expiryMonth?: number; expiryYear?: number },
+) {
+  const existing = await prisma.userPaymentMethod.findUnique({ where: { id } });
+  if (!existing || existing.userId !== userId) throw ApiError.notFound('Payment method not found');
+
+  if (patch.isDefault === true) {
+    // Clear other defaults
+    await prisma.userPaymentMethod.updateMany({
+      where: { userId, isDefault: true, id: { not: id } },
+      data: { isDefault: false },
+    });
+  }
+
+  return prisma.userPaymentMethod.update({
+    where: { id },
+    data: patch,
+    select: { id: true, brand: true, last4: true, expiryMonth: true, expiryYear: true, holderName: true, isDefault: true },
+  });
+}
+
+export async function deletePaymentMethod(userId: string, id: string) {
+  const existing = await prisma.userPaymentMethod.findUnique({ where: { id } });
+  if (!existing || existing.userId !== userId) throw ApiError.notFound('Payment method not found');
+
+  const wasDefault = existing.isDefault;
+  await prisma.userPaymentMethod.delete({ where: { id } });
+
+  // If we deleted the default, promote the next most-recent one
+  if (wasDefault) {
+    const next = await prisma.userPaymentMethod.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (next) {
+      await prisma.userPaymentMethod.update({
+        where: { id: next.id },
+        data: { isDefault: true },
+      });
+    }
+  }
 }

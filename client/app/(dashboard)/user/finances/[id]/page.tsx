@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Loader2, Printer, QrCode } from "lucide-react";
 import { api, ApiCallError } from "@/lib/api";
-import type { ReceiptDto } from "@/lib/api-types";
+import type { InvoiceDetail, ReceiptDto } from "@/lib/api-types";
 import { formatMoney } from "@/lib/format";
 
 function formatTimeRange(start: string, end: string | null): string {
@@ -30,20 +30,34 @@ export default function ReceiptPage() {
   const id = params.id;
 
   const [receipt, setReceipt] = useState<ReceiptDto | null>(null);
+  const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setReceipt(null);
+    setInvoice(null);
     try {
-      const r = await api.get<ReceiptDto>(`/me/sessions/${id}/receipt`);
-      setReceipt(r);
+      // Try session receipt first (the common path from charging-history rows)
+      try {
+        const r = await api.get<ReceiptDto>(`/me/sessions/${id}/receipt`);
+        setReceipt(r);
+        return;
+      } catch (err) {
+        if (!(err instanceof ApiCallError) || err.status !== 404) {
+          throw err; // re-throw non-404 errors
+        }
+      }
+      // Fall back to invoice detail (path from /user/finances invoices list)
+      const inv = await api.get<InvoiceDetail>(`/me/finances/invoices/${id}`);
+      setInvoice(inv);
     } catch (err) {
       if (err instanceof ApiCallError) {
-        if (err.status === 404) setError("Receipt not found. The link may have expired or this is an invoice (not a session receipt).");
-        else if (err.status === 403) setError("You don't have access to this receipt.");
-        else setError(err.message || "Could not load receipt");
+        if (err.status === 404) setError("Not found. The link may have expired.");
+        else if (err.status === 403) setError("You don't have access to this resource.");
+        else setError(err.message || "Could not load");
       } else {
         setError("Network error.");
       }
@@ -65,13 +79,13 @@ export default function ReceiptPage() {
     );
   }
 
-  if (error || !receipt) {
+  if (error || (!receipt && !invoice)) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
         <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
           <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{error ?? "Receipt not found."}</span>
+            <span>{error ?? "Not found."}</span>
           </div>
           <button
             type="button"
@@ -84,6 +98,111 @@ export default function ReceiptPage() {
       </div>
     );
   }
+
+  // Render invoice if we fell back to it
+  if (invoice && !receipt) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-background p-4 text-foreground font-sans">
+        <div className="w-full max-w-xl">
+          <div className="rounded-xl border border-border bg-card p-8 shadow-2xl sm:p-10 print:border-0 print:shadow-none">
+            <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+              <div>
+                <h1 className="text-2xl font-bold tracking-widest text-foreground">VOLTCORE</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Invoice</p>
+              </div>
+              <div className="text-left sm:text-right">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                  Invoice
+                </p>
+                <p className="font-mono text-sm tracking-wider">{invoice.code}</p>
+                <p className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+                  {invoice.status}
+                </p>
+              </div>
+            </div>
+
+            <hr className="mb-8 border-border" />
+
+            <div className="mb-6">
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                Bill to
+              </p>
+              <p className="text-sm font-medium">
+                {(invoice.billTo as { name: string }).name}
+              </p>
+              {((invoice.billTo as { address: string[] }).address ?? []).map((line) => (
+                <p key={line} className="text-sm text-muted-foreground">{line}</p>
+              ))}
+            </div>
+
+            <div className="mb-6 space-y-3 border-t border-border pt-4">
+              <div className="mb-2 flex justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <span>Line item</span>
+                <span>Total</span>
+              </div>
+              {invoice.lineItems.map((li) => (
+                <div key={li.id} className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{li.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{li.description}</p>
+                  </div>
+                  <span className="text-sm font-semibold">
+                    {formatMoney(li.totalCents, invoice.currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <hr className="mb-6 border-border" />
+
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>{formatMoney(invoice.subtotalCents, invoice.currency)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tax</span>
+                <span>{formatMoney(invoice.taxCents, invoice.currency)}</span>
+              </div>
+              <div className="mt-4 flex items-end justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Grand total
+                </span>
+                <span className="text-3xl font-bold">
+                  {formatMoney(invoice.grandTotalCents, invoice.currency)}
+                </span>
+              </div>
+              {invoice.paidAt && (
+                <p className="pt-2 text-xs text-muted-foreground">
+                  Paid {new Date(invoice.paidAt).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-8 flex justify-center gap-3 print:hidden">
+            <button
+              type="button"
+              onClick={() => router.push("/user/finances")}
+              className="flex items-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold transition hover:bg-muted/30"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-bold tracking-wide text-background transition-transform hover:scale-105 active:scale-95"
+            >
+              <Printer className="h-4 w-4" />
+              Print Document
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!receipt) return null;
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-background p-4 text-foreground font-sans">

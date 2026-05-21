@@ -186,6 +186,31 @@ export async function resetUserPassword(id: string): Promise<void> {
   });
 }
 
-export async function updateMe(id: string, data: { firstName?: string; lastName?: string; avatarUrl?: string }): Promise<void> {
-  await prisma.user.update({ where: { id }, data });
+interface UpdateMeInput {
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+  phone?: string | null;
+  preferences?: Record<string, unknown>;
+}
+
+export async function updateMe(id: string, input: UpdateMeInput): Promise<void> {
+  // Merge preferences with existing if provided (so partial updates work)
+  let preferencesData: Prisma.InputJsonValue | undefined;
+  if (input.preferences) {
+    const current = await prisma.user.findUnique({ where: { id }, select: { preferences: true } });
+    const existing = (current?.preferences as Record<string, unknown> | null) ?? {};
+    preferencesData = { ...existing, ...input.preferences } as Prisma.InputJsonValue;
+  }
+
+  await prisma.user.update({
+    where: { id },
+    data: {
+      ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
+      ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
+      ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+      ...(input.phone !== undefined ? { phone: input.phone } : {}),
+      ...(preferencesData !== undefined ? { preferences: preferencesData } : {}),
+    },
+  });
 }

@@ -14,10 +14,12 @@ import {
 } from '../schemas/finances.schema.js';
 
 const router = Router();
-router.use(authenticate, requireRole('ADMIN'));
+router.use(authenticate);
 
+// Admin-only: revenue-heavy financial aggregations
 router.get(
   '/kpis',
+  requireRole('ADMIN'),
   validate(kpisQuery, 'query'),
   asyncHandler(async (_req, res) => {
     const kpis = await svc.getKpis();
@@ -27,6 +29,7 @@ router.get(
 
 router.get(
   '/revenue-timeseries',
+  requireRole('ADMIN'),
   validate(timeseriesQuery, 'query'),
   asyncHandler(async (req, res) => {
     const q = validated<TimeseriesQuery>(req, 'query');
@@ -37,10 +40,23 @@ router.get(
 
 router.get(
   '/daily-volume',
+  requireRole('ADMIN'),
   validate(dailyVolumeQuery, 'query'),
   asyncHandler(async (req, res) => {
     const q = validated<DailyVolumeQuery>(req, 'query');
     const points = await svc.dailyVolume(q);
+    return ok(res, points);
+  }),
+);
+
+// Admin + Supervisor: operational load chart (no revenue data)
+router.get(
+  '/hourly-load',
+  requireRole('ADMIN', 'SUPERVISOR'),
+  asyncHandler(async (req, res) => {
+    const hoursRaw = (req.query as { hours?: string }).hours;
+    const hours = Math.min(72, Math.max(1, Number(hoursRaw) || 14));
+    const points = await svc.hourlyLoad(hours);
     return ok(res, points);
   }),
 );

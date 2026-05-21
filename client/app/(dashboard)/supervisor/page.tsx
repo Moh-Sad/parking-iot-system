@@ -37,6 +37,11 @@ interface StationRow {
   region: string;
 }
 
+interface HourlyLoadPoint {
+  hour: number;
+  sessions: number;
+}
+
 export default function SupervisorDashboardPage() {
   const [slots, setSlots] = useState<SlotView[]>([]);
   const [slotStats, setSlotStats] = useState<SlotsListResponse["stats"] | null>(null);
@@ -45,6 +50,7 @@ export default function SupervisorDashboardPage() {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [stations, setStations] = useState<StationRow[]>([]);
+  const [hourlyLoad, setHourlyLoad] = useState<HourlyLoadPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,13 +60,14 @@ export default function SupervisorDashboardPage() {
     else setIsRefreshing(true);
     setError(null);
     try {
-      const [slotsRes, s, h, a, act, st] = await Promise.all([
+      const [slotsRes, s, h, a, act, st, hl] = await Promise.all([
         api.get<SlotsListResponse>("/slots", { unwrap: false }),
         api.get<DashboardStats>("/dashboard/stats"),
         api.get<HealthData>("/dashboard/health"),
         api.get<AlertRow[]>("/dashboard/alerts?limit=5"),
         api.get<Paginated<ActivityRow>>("/assignments?limit=6", { unwrap: false }),
         api.get<Paginated<StationRow>>("/stations?limit=20", { unwrap: false }),
+        api.get<HourlyLoadPoint[]>("/finances/hourly-load?hours=14"),
       ]);
       setSlots(slotsRes.data);
       setSlotStats(slotsRes.stats);
@@ -69,6 +76,7 @@ export default function SupervisorDashboardPage() {
       setAlerts(a);
       setActivity(act.data);
       setStations(st.data);
+      setHourlyLoad(hl);
     } catch (err) {
       if (err instanceof ApiCallError) setError(err.message || "Failed to load dashboard");
       else setError("Network error. Is the API server running?");
@@ -106,11 +114,11 @@ export default function SupervisorDashboardPage() {
     return acc;
   }, {});
 
-  // Synthetic bar-chart heights from slot occupancy (visual only)
-  const barHeights = Array.from({ length: 14 }, (_, i) => {
-    const base = 30 + ((i * 13) % 60);
-    return Math.min(95, Math.round(base + (usedSlots / Math.max(1, totalSlots)) * 30));
-  });
+  // Real hourly load — scale to 95% max
+  const maxSessions = Math.max(...hourlyLoad.map((p) => p.sessions), 1);
+  const barHeights = hourlyLoad.length > 0
+    ? hourlyLoad.map((p) => Math.round((p.sessions / maxSessions) * 95))
+    : Array.from({ length: 14 }, () => 5);
   const peakIdx = barHeights.indexOf(Math.max(...barHeights));
 
   return (

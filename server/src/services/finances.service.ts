@@ -134,3 +134,43 @@ export async function dailyVolume(query: { weekStarting?: Date }): Promise<Daily
   const labels: DailyVolumePoint['day'][] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
   return labels.map((day, idx) => ({ day, count: byDow.get(idx + 1) ?? 0 }));
 }
+
+interface HourlyLoadPoint {
+  hour: number; // 0-23
+  sessions: number;
+}
+
+/**
+ * Returns last 14 1-hour buckets of assignment-start counts.
+ * Used by the supervisor dashboard's load distribution chart.
+ */
+export async function hourlyLoad(hours = 14): Promise<HourlyLoadPoint[]> {
+  const end = new Date();
+  const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
+
+  const rows = await prisma.$queryRaw<Array<{ bucket: Date; sessions: bigint }>>(
+    Prisma.sql`
+      SELECT
+        date_trunc('hour', "arrivalTime") AS bucket,
+        COUNT(*)::bigint AS sessions
+      FROM slot_assignments
+      WHERE "arrivalTime" >= ${start} AND "arrivalTime" <= ${end}
+      GROUP BY bucket
+      ORDER BY bucket ASC
+    `,
+  );
+
+  // Build a complete window with zeros for buckets that have no data
+  const byKey = new Map<string, number>();
+  for (const r of rows) byKey.set(r.bucket.toISOString(), Number(r.sessions));
+
+  const result: HourlyLoadPoint[] = [];
+  for (let i = 0; i < hours; i++) {
+    const slot = new Date(start.getTime() + i * 60 * 60 * 1000);
+    slot.setMinutes(0, 0, 0);
+    const key = slot.toISOString();
+    result.push({ hour: slot.getUTCHours(), sessions: byKey.get(key) ?? 0 });
+  }
+
+  return result;
+}

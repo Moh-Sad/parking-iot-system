@@ -19,6 +19,7 @@ import type {
   WalletDto,
 } from "@/lib/api-types";
 import { formatMoney } from "@/lib/format";
+import { TopUpDialog } from "@/components/TopUpDialog";
 
 function ChargeRing({ percent }: { percent: number }) {
   const r = 54;
@@ -266,13 +267,18 @@ export default function UserDashboardPage() {
                 </div>
               </div>
 
-              <Link
-                href="/user/finances"
-                className="mt-auto flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors"
-              >
-                <RefreshCw size={13} />
-                Top Up Wallet
-              </Link>
+              <TopUpDialog
+                trigger={
+                  <button
+                    type="button"
+                    className="mt-auto flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors"
+                  >
+                    <RefreshCw size={13} />
+                    Top Up Wallet
+                  </button>
+                }
+                onSuccess={() => load(false)}
+              />
             </>
           )}
         </div>

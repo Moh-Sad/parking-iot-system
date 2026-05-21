@@ -34,6 +34,8 @@ router.get(
       region: u.region,
       uid: u.uid,
       avatarUrl: u.avatarUrl,
+      phone: u.phone,
+      preferences: u.preferences ?? null,
       initials: initialsOf(u.firstName, u.lastName, u.email),
       lastLoginAt: u.lastLoginAt,
     });
@@ -45,7 +47,14 @@ router.patch(
   validate(updateMeBody),
   asyncHandler(async (req, res) => {
     if (!req.user) throw ApiError.unauthorized();
-    await users.updateMe(req.user.id, req.body as Record<string, string>);
+    const body = req.body as {
+      firstName?: string;
+      lastName?: string;
+      avatarUrl?: string;
+      phone?: string | null;
+      preferences?: Record<string, unknown>;
+    };
+    await users.updateMe(req.user.id, body);
     return ok(res, { ok: true });
   }),
 );

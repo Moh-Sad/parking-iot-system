@@ -6,7 +6,6 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ok, paginated } from '../utils/http.js';
 import * as svc from '../services/my-finances.service.js';
-import * as walletSvc from '../services/wallet.service.js';
 import { idParam } from '../schemas/common.schema.js';
 import { myInvoicesQuery, type MyInvoicesQuery } from '../schemas/finances.schema.js';
 import { payInvoiceBody, type PayInvoiceBody } from '../schemas/wallet.schema.js';
@@ -57,13 +56,7 @@ router.post(
   }),
 );
 
-router.get(
-  '/payment-methods',
-  asyncHandler(async (req, res) => {
-    if (!req.user) throw ApiError.unauthorized();
-    const methods = await walletSvc.listPaymentMethods(req.user.id);
-    return ok(res, methods);
-  }),
-);
+// /payment-methods (and CRUD) is mounted at /me/finances/payment-methods
+// via my-payment-methods.routes.ts
 
 export default router;

@@ -105,6 +105,7 @@ model User {
   status              UserStatus @default(ACTIVE)
   region              String?
   phone               String?
+  preferences         Json?      // { currency, timezone, measurement, notifications: { chargeAlerts, balanceWarnings, receiptEmails } }
   uid                 String     @unique
   avatarUrl           String?
   mustCompleteProfile Boolean    @default(false)

@@ -92,6 +92,7 @@ export interface InvoiceDetail {
   taxCents: number;
   grandTotalCents: number;
   currency: string;
+  paidAt?: string | null;
 }
 
 export interface UserRow {

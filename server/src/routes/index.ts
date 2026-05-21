@@ -17,6 +17,8 @@ import healthRoutes from './health.routes.js';
 import myWalletRoutes from './my-wallet.routes.js';
 import mySessionsRoutes from './my-sessions.routes.js';
 import myFinancesRoutes from './my-finances.routes.js';
+import myPaymentMethodsRoutes from './my-payment-methods.routes.js';
+import myVehiclesRoutes from './my-vehicles.routes.js';
 import financesRoutes from './finances.routes.js';
 
 export const apiRouter = Router();
@@ -24,7 +26,9 @@ export const apiRouter = Router();
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/me/wallet', myWalletRoutes);
 apiRouter.use('/me/sessions', mySessionsRoutes);
+apiRouter.use('/me/finances/payment-methods', myPaymentMethodsRoutes);
 apiRouter.use('/me/finances', myFinancesRoutes);
+apiRouter.use('/me/vehicles', myVehiclesRoutes);
 apiRouter.use('/finances', financesRoutes);
 apiRouter.use('/me', meRoutes);
 apiRouter.use('/users', usersRoutes);

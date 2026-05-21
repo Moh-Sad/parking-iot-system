@@ -27,10 +27,28 @@ export const updateUserBody = z.object({
   status: z.nativeEnum(UserStatus).optional(),
 });
 
+const preferencesSchema = z
+  .object({
+    currency: z.enum(['USD', 'EUR', 'GBP']).optional(),
+    timezone: z.string().min(1).max(40).optional(),
+    measurement: z.enum(['METRIC', 'IMPERIAL']).optional(),
+    notifications: z
+      .object({
+        chargeAlerts: z.boolean().optional(),
+        balanceWarnings: z.boolean().optional(),
+        receiptEmails: z.boolean().optional(),
+      })
+      .partial()
+      .optional(),
+  })
+  .partial();
+
 export const updateMeBody = z.object({
   firstName: z.string().min(1).max(80).optional(),
   lastName: z.string().min(1).max(80).optional(),
   avatarUrl: z.string().url().optional(),
+  phone: z.string().min(3).max(40).optional().nullable(),
+  preferences: preferencesSchema.optional(),
 });
 
 export const changePasswordBody = z.object({
